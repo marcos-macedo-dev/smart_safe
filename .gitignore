@@ -1,0 +1,6 @@
+.vscode/
+# client/
+# smart_safe/
+
+.gemini/
+gha-creds-*.json
