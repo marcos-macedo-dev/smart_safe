@@ -95,7 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final User? user = await ApiService.login(email, password);
       if (user != null) {
-        _promptForBiometrics();
+        await _promptForBiometrics();
+        if (!mounted) return;
         _navigateToMain();
       } else {
         _showMessage('Credenciais inválidas');
@@ -481,4 +482,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

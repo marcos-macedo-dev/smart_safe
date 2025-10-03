@@ -1,3 +1,6 @@
+import com.android.build.gradle.BaseExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 allprojects {
     repositories {
         google()
@@ -14,8 +17,20 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
+
+    // Normalize Java/Kotlin compile targets to Java 17 to avoid JDK 21 warnings about source/target 8
+    afterEvaluate {
+        extensions.findByType(BaseExtension::class.java)?.apply {
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+        tasks.withType(KotlinCompile::class.java).configureEach {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
+
     project.evaluationDependsOn(":app")
 }
 

@@ -188,16 +188,9 @@ class AdvancedSyncService {
   Future<void> _syncDelegacias() async {
     try {
       // Sincronizar lista de delegacias (dados estáticos)
-      final delegaciasResponse = await _apiService.get('/delegacias');
-      if (delegaciasResponse.statusCode == 200 && delegaciasResponse.data is List) {
-        // Atualizar dados locais das delegacias
-        final delegacias = (delegaciasResponse.data as List)
-            .map((item) => Delegacia.fromJson(item))
-            .toList();
-        
-        for (final delegacia in delegacias) {
-          await _localDatabase.updateDelegacia(delegacia);
-        }
+      final delegacias = await ApiService.getDelegacias();
+      for (final delegacia in delegacias) {
+        await _localDatabase.updateDelegacia(delegacia);
       }
     } catch (e) {
       print('Erro ao sincronizar delegacias: $e');

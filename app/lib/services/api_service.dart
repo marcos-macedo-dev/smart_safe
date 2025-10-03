@@ -217,14 +217,23 @@ class ApiService {
     try {
       final response = await _dio.get('/delegacias'); // endpoint da API
       if (response.statusCode == 200 && response.data != null) {
-        final List data = response.data;
-        return data.map((json) => Delegacia.fromJson(json)).toList();
+        final delegaciasData = _extractDelegaciaList(response.data);
+        return delegaciasData.map((json) => Delegacia.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
       print('Erro ao buscar delegacias: $e');
       return [];
     }
+  }
+
+  static List<dynamic> _extractDelegaciaList(dynamic rawData) {
+    if (rawData is List) return rawData;
+    if (rawData is Map<String, dynamic>) {
+      final nested = rawData['delegacias'];
+      if (nested is List) return nested;
+    }
+    return [];
   }
 
   /// Buscar delegacias próximas (opcional: latitude, longitude, radius em km)
@@ -319,4 +328,3 @@ class ApiService {
     }
   }
 }
-

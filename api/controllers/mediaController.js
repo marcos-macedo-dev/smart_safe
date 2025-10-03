@@ -1,6 +1,6 @@
 const { Media } = require('../models');
 const logAudit = require('../utils/auditLogger');
-const { bucket } = require('./uploadController');
+const { generateSignedUrl } = require('./uploadController');
 
 // Criar um novo registro de mídia
 exports.createMedia = async (req, res) => {
@@ -39,13 +39,8 @@ exports.getAllMedia = async (req, res) => {
         if (!media.caminho || media.caminho.startsWith('http')) {
           return media;
         }
-        const [signedUrl] = await bucket.file(media.caminho).getSignedUrl({
-          action: 'read',
-          expires: Date.now() + 1000 * 60 * 60 * 24, // 24 horas
-        });
-        return { ...media.toJSON(),
-          caminho: signedUrl
-        };
+        const signedUrl = await generateSignedUrl(media.caminho);
+        return { ...media.toJSON(), caminho: signedUrl };
       })
     );
 
@@ -72,14 +67,9 @@ exports.getMediaById = async (req, res) => {
       return res.status(200).json(media);
     }
 
-    const [signedUrl] = await bucket.file(media.caminho).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 60 * 24, // 24 horas
-    });
+    const signedUrl = await generateSignedUrl(media.caminho);
 
-    return res.status(200).json({ ...media.toJSON(),
-      caminho: signedUrl
-    });
+    return res.status(200).json({ ...media.toJSON(), caminho: signedUrl });
   } catch (error) {
     console.error('Erro ao buscar registro de mídia por ID:', error);
     return res.status(500).json({

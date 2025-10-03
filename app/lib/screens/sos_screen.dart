@@ -174,7 +174,11 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         setState(() => _recording = false);
         return;
       }
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await _obtainCurrentPosition();
+      if (pos == null) {
+        setState(() => _recording = false);
+        return;
+      }
       final sos = await _sosService.createSos(
         latitude: pos.latitude,
         longitude: pos.longitude,
@@ -208,7 +212,11 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         setState(() => _recording = false);
         return;
       }
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await _obtainCurrentPosition();
+      if (pos == null) {
+        setState(() => _recording = false);
+        return;
+      }
       final sos = await _sosService.createSos(
         latitude: pos.latitude,
         longitude: pos.longitude,
@@ -232,7 +240,10 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
   Future<void> _sendLocation() async {
     try {
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await _obtainCurrentPosition();
+      if (pos == null) {
+        return;
+      }
       final sos = await _sosService.createSos(
         latitude: pos.latitude,
         longitude: pos.longitude,
@@ -253,16 +264,92 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     setState(() => _sendLocationRealtime = value);
     _locationTimer?.cancel();
     if (value && _activeSosId != null) {
-      _locationTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-        final pos = await Geolocator.getCurrentPosition();
-        final battery = await Battery().batteryLevel;
+      () async {
+        final initialPosition = await _obtainCurrentPosition();
+        if (initialPosition == null) {
+          if (mounted) {
+            setState(() => _sendLocationRealtime = false);
+          }
+          return;
+        }
+
+        if (!mounted || !_sendLocationRealtime || _activeSosId == null) {
+          return;
+        }
+
+        // Envia uma atualização inicial opcional com a posição atual
+        final batteryLevel = await Battery().batteryLevel;
         await _sosService.sendRealtimeLocation(
           sosId: _activeSosId!,
-          latitude: pos.latitude,
-          longitude: pos.longitude,
-          nivelBateria: battery.toDouble(),
+          latitude: initialPosition.latitude,
+          longitude: initialPosition.longitude,
+          nivelBateria: batteryLevel.toDouble(),
         );
-      });
+
+        _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+          if (_activeSosId == null || !_sendLocationRealtime) {
+            timer.cancel();
+            return;
+          }
+          final pos = await _obtainCurrentPosition(silent: true);
+          if (pos == null) {
+            timer.cancel();
+            if (mounted) {
+              setState(() => _sendLocationRealtime = false);
+            }
+            _showMessage('Localização em tempo real pausada. Verifique as permissões.');
+            return;
+          }
+          final battery = await Battery().batteryLevel;
+          await _sosService.sendRealtimeLocation(
+            sosId: _activeSosId!,
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            nivelBateria: battery.toDouble(),
+          );
+        });
+      }();
+    }
+  }
+
+  Future<Position?> _obtainCurrentPosition({bool silent = false}) async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!silent) {
+        _showMessage('Ative o serviço de localização para enviar um SOS.');
+        await Geolocator.openLocationSettings();
+      }
+      return null;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!silent) {
+          _showMessage('Precisamos da sua localização para enviar o SOS.');
+        }
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!silent) {
+        _showMessage('Permita acesso à localização nas configurações do aplicativo.');
+        await Geolocator.openAppSettings();
+      }
+      return null;
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (e) {
+      if (!silent) {
+        _showMessage('Não foi possível obter sua localização. Tente novamente.');
+      }
+      return null;
     }
   }
 

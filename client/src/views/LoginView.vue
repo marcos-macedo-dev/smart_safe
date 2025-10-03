@@ -1,8 +1,6 @@
 <template>
   <div class="h-screen flex items-center justify-center bg-zinc-900 px-4">
-    <div
-      class="w-full max-w-md rounded-3xl p-10 bg-zinc-800 shadow-xl"
-    >
+    <div class="w-full max-w-md rounded-3xl p-10 bg-zinc-800 shadow-xl">
       <header class="mb-8 text-center">
         <h1 class="text-3xl font-extrabold text-white mb-2">Smart Safe</h1>
         <p class="text-gray-300 text-sm">Sistema de gerenciamento de segurança</p>
@@ -24,7 +22,9 @@
 
         <div class="flex items-center justify-between m-0">
           <label for="senha" class="form-label">Senha</label>
-          <RouterLink to="/forgot-password" class="text-gray-300 text-sm underline hover:text-primary-500"
+          <RouterLink
+            to="/forgot-password"
+            class="text-gray-300 text-sm underline hover:text-primary-500"
             >Esqueceu a senha?</RouterLink
           >
         </div>
@@ -41,20 +41,14 @@
           />
         </div>
 
-        <button
-          type="submit"
-          class="form-button"
-        >
+        <button type="submit" class="form-button">
           <LogIn class="w-5 h-5" />
           <span>Entrar</span>
         </button>
       </form>
 
       <p class="mt-6 text-center text-gray-400 text-sm">
-        Ainda não possui uma conta?
-        <RouterLink to="#" class="text-gray-300 text-sm underline hover:text-primary-500"
-          >Crie uma</RouterLink
-        >
+        &copy; {{ new Date().getFullYear() }} Smart Safe. Todos os direitos reservados.
       </p>
     </div>
   </div>
@@ -64,7 +58,7 @@
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { LogIn } from 'lucide-vue-next'
-import { login } from '@/services/http';
+import { login } from '@/services/http'
 import { useToastStore } from '@/stores/toast'
 
 const router = useRouter()
@@ -73,7 +67,7 @@ const toast = useToastStore()
 // Form data
 const form = reactive({
   email: '',
-  senha: ''
+  senha: '',
 })
 
 // Handle login form submission

@@ -233,73 +233,151 @@
     <!-- Modal para Adicionar/Editar Usuário -->
     <div
       v-if="showUserModal"
-      class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       @click="closeUserModal"
+      @keydown.escape.prevent.stop="closeUserModal"
+      tabindex="-1"
     >
-      <div class="bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-md" @click.stop>
-        <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
-          <h3 class="text-lg font-medium text-zinc-900 dark:text-white">
-            {{ editingUser ? 'Editar Operador' : 'Adicionar Novo Operador' }}
-          </h3>
+      <div
+        class="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl w-full max-w-lg border border-zinc-200/60 dark:border-zinc-700/60"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-modal-title"
+        @click.stop
+      >
+        <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-start justify-between gap-4">
+          <div>
+            <h3 id="user-modal-title" class="text-lg font-semibold text-zinc-900 dark:text-white">
+              {{ editingUser ? 'Editar Operador' : 'Adicionar Novo Operador' }}
+            </h3>
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {{ editingUser
+                ? 'Atualize os dados do operador selecionado. As alterações são sincronizadas imediatamente.'
+                : 'Informe os dados básicos para enviar o convite de acesso ao novo operador.'
+              }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+            @click="closeUserModal"
+            aria-label="Fechar modal"
+          >
+            <X class="w-5 h-5" />
+          </button>
         </div>
-        <form @submit.prevent="saveUser" class="px-6 py-4">
-          <div class="mb-4">
-            <label
-              for="nome"
-              class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-              >Nome</label
-            >
-            <input
-              v-model="userForm.nome"
-              type="text"
-              id="nome"
-              required
-              class="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white"
-            />
+        <form @submit.prevent="saveUser" class="px-6 py-5 space-y-5">
+          <div class="grid gap-4">
+            <div>
+              <label for="nome" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Nome completo</label>
+              <input
+                v-model.trim="userForm.nome"
+                type="text"
+                id="nome"
+                required
+                autofocus
+                @input="clearFieldError('nome')"
+                :aria-invalid="Boolean(formErrors.nome)"
+                :aria-describedby="formErrors.nome ? 'nome-error' : undefined"
+                class="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white transition-colors"
+                :class="formErrors.nome
+                  ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                  : 'border-zinc-300 dark:border-zinc-600'
+                "
+                placeholder="Ex.: Maria Silva"
+              />
+              <p v-if="formErrors.nome" id="nome-error" class="mt-1 text-xs text-red-500">
+                {{ formErrors.nome }}
+              </p>
+              <p v-else class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Informe como o nome deve aparecer para os demais operadores.
+              </p>
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email corporativo</label>
+              <input
+                v-model.trim="userForm.email"
+                type="email"
+                id="email"
+                required
+                @input="clearFieldError('email')"
+                :aria-invalid="Boolean(formErrors.email)"
+                :aria-describedby="formErrors.email ? 'email-error' : 'email-hint'"
+                class="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white transition-colors"
+                :class="formErrors.email
+                  ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                  : 'border-zinc-300 dark:border-zinc-600'
+                "
+                placeholder="nome@delegacia.gov.br"
+              />
+              <p v-if="formErrors.email" id="email-error" class="mt-1 text-xs text-red-500">
+                {{ formErrors.email }}
+              </p>
+              <p v-else id="email-hint" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                O convite será enviado para este endereço.
+              </p>
+            </div>
+            <div>
+              <label for="cargo" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Cargo</label>
+              <div
+                id="cargo"
+                class="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                role="radiogroup"
+                aria-label="Selecione o cargo"
+              >
+                <button
+                  v-for="option in roleOptions"
+                  :key="option.value"
+                  type="button"
+                  @click="setRole(option.value)"
+                  role="radio"
+                  :aria-checked="userForm.cargo === option.value"
+                  class="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-all"
+                  :class="userForm.cargo === option.value
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-500/10 dark:text-indigo-200'
+                    : 'border-zinc-300 text-zinc-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-zinc-600 dark:text-zinc-300 dark:hover:border-indigo-400'
+                  "
+                >
+                  <span class="font-medium">
+                    {{ option.label }}
+                  </span>
+                  <span class="text-xs text-zinc-400 dark:text-zinc-500">{{ option.description }}</span>
+                </button>
+              </div>
+              <p v-if="formErrors.cargo" class="mt-1 text-xs text-red-500">
+                {{ formErrors.cargo }}
+              </p>
+            </div>
           </div>
-          <div class="mb-4">
-            <label
-              for="email"
-              class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-              >Email</label
-            >
-            <input
-              v-model="userForm.email"
-              type="email"
-              id="email"
-              required
-              class="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white"
-            />
+
+          <div class="rounded-md border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200 flex items-start gap-3">
+            <div class="mt-1 h-2 w-2 rounded-full bg-indigo-500 dark:bg-indigo-300"></div>
+            <div>
+              <p class="font-medium">Como funciona?</p>
+              <p class="mt-1 leading-relaxed">
+                {{ editingUser
+                  ? 'As alterações entram em vigor imediatamente para este operador.'
+                  : 'Enviaremos um email com link de ativação. O operador só terá acesso após aceitar o convite.'
+                }}
+              </p>
+            </div>
           </div>
-          <div class="mb-4">
-            <label
-              for="cargo"
-              class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
-              >Cargo</label
-            >
-            <select
-              v-model="userForm.cargo"
-              id="cargo"
-              required
-              class="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white"
-            >
-              <option value="Operador">Operador</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
-          <div class="flex justify-end space-x-3">
+
+          <div class="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-700">
             <button
               type="button"
               @click="closeUserModal"
-              class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              :disabled="saving"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {{ editingUser ? 'Atualizar' : 'Adicionar' }}
+              <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
+              {{ saving ? 'Salvando...' : editingUser ? 'Atualizar' : 'Enviar convite' }}
             </button>
           </div>
         </form>
@@ -310,7 +388,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
-import { Plus, Edit, UserX, UserCheck, Search, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { Plus, Edit, UserX, UserCheck, Search, RefreshCw, Trash2, X, Loader2 } from 'lucide-vue-next'
 import { listDelegaciaUsers, updateDelegaciaUser, sendInvite, deactivateDelegaciaUser, reactivateDelegaciaUser, deleteAutoridade } from '@/services/http'
 import { useToastStore } from '@/stores/toast'
 import { useConfirmDialog } from '@/stores/confirm-dialog.store'
@@ -328,6 +406,21 @@ const userForm = ref({
   email: '',
   cargo: 'Operador',
 })
+const saving = ref(false)
+const formErrors = ref({})
+
+const roleOptions = [
+  {
+    label: 'Operador',
+    value: 'Operador',
+    description: 'Acesso às ocorrências da delegacia',
+  },
+  {
+    label: 'Admin',
+    value: 'Admin',
+    description: 'Gerencia operadores e configurações',
+  },
+]
 
 // Filtros e paginação
 const filters = ref({
@@ -425,17 +518,55 @@ const getStatusClass = (ativo) => {
 const openAddUserModal = () => {
   editingUser.value = false
   userForm.value = { nome: '', email: '', cargo: 'Operador' }
+  formErrors.value = {}
+  saving.value = false
   showUserModal.value = true
 }
 
 const openEditUserModal = (user) => {
   editingUser.value = true
   userForm.value = { ...user }
+  formErrors.value = {}
+  saving.value = false
   showUserModal.value = true
 }
 
 const closeUserModal = () => {
   showUserModal.value = false
+  saving.value = false
+  formErrors.value = {}
+}
+
+const setRole = (role) => {
+  userForm.value.cargo = role
+  clearFieldError('cargo')
+}
+
+const clearFieldError = (field) => {
+  if (formErrors.value[field]) {
+    const { [field]: _removed, ...rest } = formErrors.value
+    formErrors.value = rest
+  }
+}
+
+const validateUserForm = () => {
+  const errors = {}
+
+  if (!userForm.value.nome || userForm.value.nome.trim().length < 3) {
+    errors.nome = 'Informe pelo menos 3 caracteres.'
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+  if (!userForm.value.email || !emailPattern.test(userForm.value.email)) {
+    errors.email = 'Digite um email corporativo válido.'
+  }
+
+  if (!userForm.value.cargo) {
+    errors.cargo = 'Selecione um cargo.'
+  }
+
+  formErrors.value = errors
+  return Object.keys(errors).length === 0
 }
 
 const openDeleteUserModal = async (user) => {
@@ -458,7 +589,12 @@ const openDeleteUserModal = async (user) => {
 }
 
 const saveUser = async () => {
+  if (!validateUserForm() || saving.value) {
+    return
+  }
+
   try {
+    saving.value = true
     if (editingUser.value) {
       // Editar usuário existente
       // Enviar apenas os campos que podem ser atualizados
@@ -478,6 +614,8 @@ const saveUser = async () => {
   } catch (error) {
     console.error('Erro ao salvar usuário:', error)
     toast.error('Erro ao salvar operador')
+  } finally {
+    saving.value = false
   }
 }
 

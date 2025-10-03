@@ -3,6 +3,8 @@ import { useToastStore } from '@/stores/toast';
 class NotificationService {
   constructor() {
     this.toast = useToastStore();
+    this.recentSosNotifications = new Map();
+    this.RECENT_SOS_TIMEOUT = 8000; // evita toasts duplicados em sequência
   }
 
   // Mostrar notificação visual
@@ -28,6 +30,20 @@ class NotificationService {
 
   // Notificação completa para novo SOS
   notifyNewSos(sos) {
+    const sosId = sos?.id !== undefined && sos?.id !== null ? String(sos.id) : null;
+
+    if (sosId) {
+      if (this.recentSosNotifications.has(sosId)) {
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        this.recentSosNotifications.delete(sosId);
+      }, this.RECENT_SOS_TIMEOUT);
+
+      this.recentSosNotifications.set(sosId, timeoutId);
+    }
+
     // Mostrar notificação visual
     this.showVisualNotification(
       'Novo Chamado', 
