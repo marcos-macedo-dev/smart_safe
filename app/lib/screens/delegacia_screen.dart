@@ -92,17 +92,23 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
   }
 
   void _updateMarkers() {
-    final markers = _delegacias.where((d) => d.latitude != null && d.longitude != null).map((d) {
-      final distance = _userLocation != null
-          ? _calculateDistance(_userLocation!, LatLng(d.latitude!, d.longitude!))
-          : double.infinity;
-      return Marker(
-        markerId: MarkerId(d.id.toString()),
-        position: LatLng(d.latitude!, d.longitude!),
-        infoWindow: InfoWindow(title: d.nome, snippet: d.endereco),
-        icon: _getMarkerColor(distance),
-      );
-    }).toSet();
+    final markers = _delegacias
+        .where((d) => d.latitude != null && d.longitude != null)
+        .map((d) {
+          final distance = _userLocation != null
+              ? _calculateDistance(
+                  _userLocation!,
+                  LatLng(d.latitude!, d.longitude!),
+                )
+              : double.infinity;
+          return Marker(
+            markerId: MarkerId(d.id.toString()),
+            position: LatLng(d.latitude!, d.longitude!),
+            infoWindow: InfoWindow(title: d.nome, snippet: d.endereco),
+            icon: _getMarkerColor(distance),
+          );
+        })
+        .toSet();
 
     setState(() {
       _markers = markers;
@@ -217,7 +223,8 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
           .where(
             (d) =>
                 d.nome.toLowerCase().contains(query.toLowerCase()) ||
-                (d.endereco?.toLowerCase().contains(query.toLowerCase()) ?? false),
+                (d.endereco?.toLowerCase().contains(query.toLowerCase()) ??
+                    false),
           )
           .toList();
     });
@@ -228,7 +235,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: theme.colorScheme.primary.withOpacity(0.1),
           width: 1,
@@ -236,7 +243,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -244,31 +251,31 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
       child: TextField(
         controller: searchController,
         onChanged: _filterDelegacias,
-        style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+        style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
         decoration: InputDecoration(
           hintText: 'Buscar delegacia...',
           hintStyle: TextStyle(
             color: theme.colorScheme.onSurface.withOpacity(0.6),
-            fontSize: 16,
+            fontSize: 14,
           ),
           prefixIcon: Icon(
             Icons.search,
             color: theme.colorScheme.primary.withOpacity(0.7),
-            size: 20,
+            size: 18,
           ),
           filled: true,
           fillColor: theme.colorScheme.primary.withOpacity(0.05),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
           ),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+            horizontal: 12,
+            vertical: 12,
           ),
         ),
       ),
@@ -276,7 +283,10 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
   }
 
   Widget _buildDelegaciaCard(Delegacia delegacia, ThemeData theme) {
-    final distance = _userLocation != null && delegacia.latitude != null && delegacia.longitude != null
+    final distance =
+        _userLocation != null &&
+            delegacia.latitude != null &&
+            delegacia.longitude != null
         ? _calculateDistance(
                 _userLocation!,
                 LatLng(delegacia.latitude!, delegacia.longitude!),
@@ -309,10 +319,10 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.primary.withOpacity(0.1),
           width: 1,
@@ -320,7 +330,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -328,7 +338,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             if (delegacia.latitude != null && delegacia.longitude != null) {
               _mapController.animateCamera(
@@ -340,27 +350,27 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             }
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 // Ícone principal
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Icon(
                       Icons.local_police,
-                      size: 24,
+                      size: 20,
                       color: theme.colorScheme.primary,
                     ),
                   ),
                 ),
 
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
 
                 // Conteúdo principal
                 Expanded(
@@ -370,7 +380,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                       Text(
                         delegacia.nome,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: theme.colorScheme.onSurface,
                         ),
@@ -378,41 +388,41 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
 
                       Text(
                         delegacia.endereco ?? 'Endereço não disponível',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
                       // Status de proximidade
                       Row(
                         children: [
-                          Icon(proximityIcon, size: 14, color: distanceColor),
+                          Icon(proximityIcon, size: 12, color: distanceColor),
                           const SizedBox(width: 4),
                           Text(
                             proximityLabel,
                             style: TextStyle(
                               color: distanceColor,
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                           if (distance != null) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               "${distance.toStringAsFixed(1)} km",
                               style: TextStyle(
                                 color: distanceColor,
                                 fontWeight: FontWeight.w500,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ],
@@ -424,16 +434,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
 
                 // Botão de direções
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       onTap: () {
                         final url = Uri.encodeFull(
                           'https://www.google.com/maps/dir/?api=1&destination=${delegacia.latitude},${delegacia.longitude}',
@@ -447,7 +457,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                         child: Icon(
                           Icons.directions,
                           color: theme.colorScheme.primary,
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                     ),
@@ -471,11 +481,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.primary.withOpacity(0.04),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.8),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8))],
           ),
           child: ListView(
             controller: controller,
@@ -499,7 +505,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
               // Lista de delegacias
               if (filteredDelegacias.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  padding: const EdgeInsets.symmetric(vertical: 24.0),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -507,14 +513,14 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                       children: [
                         Icon(
                           Icons.search_off,
-                          size: 32,
+                          size: 28,
                           color: theme.colorScheme.onSurface.withAlpha(128),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Nenhuma delegacia encontrada',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: theme.colorScheme.onSurface.withAlpha(128),
                           ),
                           textAlign: TextAlign.center,
@@ -543,7 +549,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
           Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: theme.colorScheme.primary.withOpacity(0.1),
                 width: 1,
@@ -551,7 +557,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
+                  blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -559,16 +565,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 onTap: _toggleMapType,
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   child: Center(
                     child: Icon(
                       Icons.layers,
                       color: theme.colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -576,12 +582,12 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           Container(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: theme.colorScheme.primary.withOpacity(0.1),
                 width: 1,
@@ -589,7 +595,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
+                  blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -597,16 +603,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 onTap: _centerMap,
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   child: Center(
                     child: Icon(
                       Icons.my_location,
                       color: theme.colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -628,6 +634,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
           ? Center(
               child: CircularProgressIndicator(
                 color: theme.colorScheme.primary,
+                strokeWidth: 2,
               ),
             )
           : Stack(

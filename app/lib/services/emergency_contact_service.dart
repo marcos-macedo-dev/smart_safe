@@ -33,7 +33,9 @@ class EmergencyContactService {
         if (currentUserId == null) {
           return [];
         }
-        final response = await _apiService.get('/contacts?usuario_id=$currentUserId');
+        final response = await _apiService.get(
+          '/contacts?usuario_id=$currentUserId',
+        );
         if (response.statusCode == 200) {
           contacts = (response.data as List)
               .map((json) => EmergencyContact.fromJson(json))
@@ -42,26 +44,32 @@ class EmergencyContactService {
           for (var contact in contacts) {
             final existingContacts = await _databaseHelper.getContacts();
             final existingContact = existingContacts.firstWhere(
-                (c) => c.id == contact.id, orElse: () => ContactLocal(name: '', phone: ''));
+              (c) => c.id == contact.id,
+              orElse: () => ContactLocal(name: '', phone: ''),
+            );
 
             if (existingContact.id != null) {
-              await _databaseHelper.updateContact(ContactLocal(
-                id: contact.id,
-                name: contact.nome,
-                phone: contact.telefone,
-                email: contact.email,
-                parentesco: contact.parentesco,
-                isSynced: true,
-              ));
+              await _databaseHelper.updateContact(
+                ContactLocal(
+                  id: contact.id,
+                  name: contact.nome,
+                  phone: contact.telefone,
+                  email: contact.email,
+                  parentesco: contact.parentesco,
+                  isSynced: true,
+                ),
+              );
             } else {
-              await _databaseHelper.insertContact(ContactLocal(
-                id: contact.id,
-                name: contact.nome,
-                phone: contact.telefone,
-                email: contact.email,
-                parentesco: contact.parentesco,
-                isSynced: true,
-              ));
+              await _databaseHelper.insertContact(
+                ContactLocal(
+                  id: contact.id,
+                  name: contact.nome,
+                  phone: contact.telefone,
+                  email: contact.email,
+                  parentesco: contact.parentesco,
+                  isSynced: true,
+                ),
+              );
             }
           }
           _syncContacts(); // Attempt to sync any pending local changes
@@ -74,14 +82,18 @@ class EmergencyContactService {
     // Always try to get from local database
     final localContacts = await _databaseHelper.getContacts();
     // Convert ContactLocal to EmergencyContact
-    contacts = localContacts.map((c) => EmergencyContact(
-      id: c.id,
-      nome: c.name,
-      telefone: c.phone,
-      email: c.email,
-      parentesco: c.parentesco,
-      usuarioId: currentUserId ?? 0, // Use actual userId if available
-    )).toList();
+    contacts = localContacts
+        .map(
+          (c) => EmergencyContact(
+            id: c.id,
+            nome: c.name,
+            telefone: c.phone,
+            email: c.email,
+            parentesco: c.parentesco,
+            usuarioId: currentUserId ?? 0, // Use actual userId if available
+          ),
+        )
+        .toList();
 
     return contacts;
   }
@@ -106,9 +118,14 @@ class EmergencyContactService {
           // TODO: Tratar erro: usuarioId não encontrado
           return null;
         }
-        final response = await _apiService.post('/contacts', data: contact.toJson()..['usuario_id'] = usuarioId);
+        final response = await _apiService.post(
+          '/contacts',
+          data: contact.toJson()..['usuario_id'] = usuarioId,
+        );
         if (response.statusCode == 201) {
-          EmergencyContact apiContact = EmergencyContact.fromJson(response.data);
+          EmergencyContact apiContact = EmergencyContact.fromJson(
+            response.data,
+          );
           // Update local contact with API ID and mark as synced
           newLocalContact.id = apiContact.id; // Use API's ID
           newLocalContact.isSynced = true;
@@ -126,7 +143,8 @@ class EmergencyContactService {
       telefone: newLocalContact.phone,
       email: newLocalContact.email,
       parentesco: newLocalContact.parentesco,
-      usuarioId: contact.usuarioId, // Use the original usuarioId from the passed contact
+      usuarioId: contact
+          .usuarioId, // Use the original usuarioId from the passed contact
     );
   }
 
@@ -145,9 +163,14 @@ class EmergencyContactService {
     bool online = await _isOnline();
     if (online) {
       try {
-        final response = await _apiService.put('/contacts/${contact.id}', data: contact.toJson());
+        final response = await _apiService.put(
+          '/contacts/${contact.id}',
+          data: contact.toJson(),
+        );
         if (response.statusCode == 200) {
-          EmergencyContact apiContact = EmergencyContact.fromJson(response.data);
+          EmergencyContact apiContact = EmergencyContact.fromJson(
+            response.data,
+          );
           // Mark as synced
           updatedLocalContact.isSynced = true;
           await _databaseHelper.updateContact(updatedLocalContact);
@@ -164,7 +187,8 @@ class EmergencyContactService {
       telefone: updatedLocalContact.phone,
       email: updatedLocalContact.email,
       parentesco: updatedLocalContact.parentesco,
-      usuarioId: contact.usuarioId, // Use the original usuarioId from the passed contact
+      usuarioId: contact
+          .usuarioId, // Use the original usuarioId from the passed contact
     );
   }
 
@@ -209,9 +233,14 @@ class EmergencyContactService {
 
         if (localContact.id == null) {
           // This is a new contact that was added offline
-          final response = await _apiService.post('/contacts', data: contactToSync.toJson()..['usuario_id'] = usuarioId);
+          final response = await _apiService.post(
+            '/contacts',
+            data: contactToSync.toJson()..['usuario_id'] = usuarioId,
+          );
           if (response.statusCode == 201) {
-            EmergencyContact apiContact = EmergencyContact.fromJson(response.data);
+            EmergencyContact apiContact = EmergencyContact.fromJson(
+              response.data,
+            );
             // Update local contact with API ID and mark as synced
             localContact.id = apiContact.id;
             localContact.isSynced = true;
@@ -219,7 +248,10 @@ class EmergencyContactService {
           }
         } else {
           // This is an existing contact that was updated offline
-          final response = await _apiService.put('/contacts/${localContact.id}', data: contactToSync.toJson());
+          final response = await _apiService.put(
+            '/contacts/${localContact.id}',
+            data: contactToSync.toJson(),
+          );
           if (response.statusCode == 200) {
             localContact.isSynced = true;
             await _databaseHelper.updateContact(localContact);
@@ -230,5 +262,34 @@ class EmergencyContactService {
         // Keep isSynced = false so it's retried later
       }
     }
+  }
+
+  Future<List<EmergencyContact>> getContactsFiltered({
+    String? relationship,
+  }) async {
+    final allContacts = await getContacts();
+    if (relationship == null) {
+      return allContacts;
+    }
+    return allContacts
+        .where(
+          (contact) =>
+              contact.parentesco == relationship ||
+              (relationship == 'Sem parentesco' && contact.parentesco == null),
+        )
+        .toList();
+  }
+
+  /// Retorna lista de relacionamentos únicos disponíveis nos contatos
+  Future<List<String>> getAvailableRelationships() async {
+    final contacts = await getContacts();
+    final relationships = contacts
+        .map((contact) => contact.parentesco)
+        .where((relationship) => relationship != null)
+        .cast<String>()
+        .toSet()
+        .toList();
+    relationships.sort();
+    return relationships;
   }
 }

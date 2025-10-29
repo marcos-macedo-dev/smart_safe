@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -68,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: "Escolha entre claro, escuro ou sistema",
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -79,7 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             themeProvider,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _buildThemeOption(
                             "Escuro",
@@ -88,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             themeProvider,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _buildThemeOption(
                             "Sistema",
@@ -102,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Seção: Privacidade
               _buildSettingCard(
@@ -119,7 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: theme.colorScheme.onSurface.withOpacity(0.5),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Seção: Sobre
               _buildSettingCard(
@@ -129,11 +129,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle:
                     "Versão ${_packageInfo.version} (Build ${_packageInfo.buildNumber})",
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     "Sistema de emergência inteligente para sua segurança.",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
@@ -162,30 +162,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         width: double.infinity,
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       icon,
                       color: theme.colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,16 +193,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Text(
                           title,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: theme.colorScheme.onSurface,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           subtitle,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
@@ -234,12 +234,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _showMessage('Tema alterado para $label');
       },
       child: Container(
-        height: 40,
+        height: 36,
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary.withOpacity(0.1)
               : theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
@@ -251,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: isSelected
                   ? theme.colorScheme.primary

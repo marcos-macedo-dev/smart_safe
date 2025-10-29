@@ -3,8 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'welcome_screen.dart';
 import 'login_screen.dart';
 import 'main_layout.dart';
-import '../services/biometric_auth_service.dart';
-import '../services/api_service.dart';
 import '../widgets/offline_indicator.dart';
 import '../widgets/sync_status_indicator.dart';
 
@@ -17,7 +15,6 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   final _storage = const FlutterSecureStorage();
-  final BiometricAuthService _biometricAuthService = BiometricAuthService();
 
   @override
   void initState() {
@@ -33,15 +30,27 @@ class _RootScreenState extends State<RootScreen> {
       if (token != null) {
         // Se um token existir, o usuário deve sempre autenticar novamente.
         // Navegue para a tela de login, que lidará com a lógica de biometria/senha.
-        _navigateToLogin();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _navigateToLogin();
+          }
+        });
       } else {
         // Nenhum token, o usuário precisa fazer login ou se registrar.
-        _navigateToWelcome();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _navigateToWelcome();
+          }
+        });
       }
     } catch (e) {
       print('Erro ao verificar status de login: $e');
       if (mounted) {
-        _navigateToWelcome();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _navigateToWelcome();
+          }
+        });
       }
     }
   }
@@ -50,13 +59,6 @@ class _RootScreenState extends State<RootScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
-  void _navigateToMain() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const MainLayoutWithIndicators()),
     );
   }
 

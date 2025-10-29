@@ -1,9 +1,9 @@
+import 'package:app/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 import 'sos_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'delegacia_screen.dart';
-import 'emergency_contacts_screen_v2.dart';
 import 'profile_screen.dart';
 import '../services/api_service.dart';
 import '../services/biometric_auth_service.dart';
@@ -56,13 +56,15 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _selectScreen(Widget screen, String title) {
     if (!mounted) return;
-    
+
     try {
       setState(() {
         _currentScreen = screen;
         _title = title;
       });
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       print('Erro ao selecionar tela: $e');
     }
@@ -70,12 +72,14 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _showLogoutDialog() {
     if (!mounted) return;
-    
+
     try {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Sair da conta'),
           content: const Text('Tem certeza que deseja sair?'),
           actions: [
@@ -84,7 +88,9 @@ class _MainLayoutState extends State<MainLayout> {
               child: Text(
                 'Cancelar',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
             ),
@@ -92,12 +98,15 @@ class _MainLayoutState extends State<MainLayout> {
               onPressed: () {
                 Navigator.pop(context);
                 BiometricAuthService().saveBiometricPreference(false);
-                ApiService.logout().then(
-                  (_) => Navigator.pushReplacementNamed(context, '/login'),
-                ).catchError((e) {
-                  print('Erro ao fazer logout: $e');
-                  Navigator.pushReplacementNamed(context, '/login');
-                });
+                ApiService.logout()
+                    .then(
+                      (_) => Navigator.pushReplacementNamed(context, '/login'),
+                    )
+                    .catchError((e) {
+                      print('Erro ao fazer logout: $e');
+                      Navigator.pushReplacementNamed(context, '/login');
+                      return null;
+                    });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
@@ -221,90 +230,51 @@ class _MainLayoutState extends State<MainLayout> {
 
   Drawer _drawer(ThemeData theme) {
     return Drawer(
-      width: 280,
+      width: 240,
       backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topRight: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          topRight: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
       ),
       child: SafeArea(
         child: Column(
           children: [
-            // Header do drawer (com logotipo, título e slogan)
+            // Header do drawer (simplificado)
             Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.08),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Coluna 1: Logotipo (1 linha)
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      color: theme.colorScheme.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
-                      child: Icon(
-                        Icons.shield_rounded,
-                        color: theme.colorScheme.primary,
-                        size: 28,
-                      ),
+                    child: Icon(
+                      Icons.shield_rounded,
+                      color: theme.colorScheme.primary,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  // Coluna 2: Título e slogan (2 linhas)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Smart Safe",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "A segurança na palma da sua mão",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 12),
+                  Text(
+                    "Smart Safe",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ],
               ),
             ),
-            // Divisor
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              color: theme.colorScheme.onSurface.withOpacity(0.1),
-            ),
-            // Divisor
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              color: theme.colorScheme.onSurface.withOpacity(0.1),
-            ),
             // Menu items
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
                   _buildMenuSection(
                     title: 'NAVEGAÇÃO',
@@ -326,7 +296,7 @@ class _MainLayoutState extends State<MainLayout> {
                         icon: Icons.contacts_outlined,
                         activeIcon: Icons.contacts,
                         title: 'Contatos de Emergência',
-                        screen: EmergencyContactsScreenV2(),
+                        screen: EmergencyContactsScreen(),
                       ),
                       _MenuItem(
                         icon: Icons.local_police_outlined,
@@ -342,7 +312,7 @@ class _MainLayoutState extends State<MainLayout> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildMenuSection(
                     title: 'CONTA',
                     theme: theme,
@@ -380,13 +350,13 @@ class _MainLayoutState extends State<MainLayout> {
                 ],
               ),
             ),
-            // Footer
-            Container(
+            // Footer simplificado
+            Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Smart Safe v1.0',
+                'v1.0',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: theme.colorScheme.onSurface.withOpacity(0.4),
                   fontWeight: FontWeight.w500,
                 ),
@@ -408,14 +378,14 @@ class _MainLayoutState extends State<MainLayout> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.primary,
-              letterSpacing: 0.8,
+              letterSpacing: 0.5,
             ),
           ),
         ),
@@ -428,13 +398,14 @@ class _MainLayoutState extends State<MainLayout> {
     final isSelected = _title == item.title;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        dense: true,
         leading: Icon(
           isSelected ? item.activeIcon : item.icon,
-          size: 22,
+          size: 20,
           color: isSelected
               ? theme.colorScheme.primary
               : theme.colorScheme.onSurface.withOpacity(0.7),
@@ -442,7 +413,7 @@ class _MainLayoutState extends State<MainLayout> {
         title: Text(
           item.title,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             color: isSelected
                 ? theme.colorScheme.primary
@@ -451,7 +422,7 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         selected: isSelected,
         selectedColor: theme.colorScheme.primary,
-        selectedTileColor: theme.colorScheme.primary.withOpacity(0.08),
+        selectedTileColor: theme.colorScheme.primary.withOpacity(0.06),
         onTap:
             item.onTap ??
             () {

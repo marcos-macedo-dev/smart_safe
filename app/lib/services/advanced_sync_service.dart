@@ -8,6 +8,8 @@ import '../models/emergency_contact.dart';
 import '../models/user.dart';
 import '../models/delegacia.dart';
 
+enum SyncStatus { idle, syncing, error }
+
 class AdvancedSyncService {
   static final AdvancedSyncService _instance = AdvancedSyncService._internal();
   factory AdvancedSyncService() => _instance;
@@ -19,9 +21,21 @@ class AdvancedSyncService {
   Timer? _syncTimer;
   bool _isSyncing = false;
 
+  // Stream para notificar mudanças de status
+  final StreamController<SyncStatus> _statusController =
+      StreamController<SyncStatus>.broadcast();
+  Stream<SyncStatus> get statusStream => _statusController.stream;
+
+  // Status atual
+  SyncStatus _currentStatus = SyncStatus.idle;
+
+  SyncStatus get currentStatus => _currentStatus;
+
   void initialize() {
     // Monitorar conectividade
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
       if (results.any((result) => result != ConnectivityResult.none)) {
         _triggerSync();
       }
@@ -39,12 +53,14 @@ class AdvancedSyncService {
   void dispose() {
     _connectivitySubscription.cancel();
     _syncTimer?.cancel();
+    _statusController.close();
   }
 
   void _triggerSync() async {
     // Verificar conectividade antes de sincronizar
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
+      _updateStatus(SyncStatus.idle);
       return;
     }
 
@@ -54,20 +70,28 @@ class AdvancedSyncService {
     }
 
     _isSyncing = true;
+    _updateStatus(SyncStatus.syncing);
     try {
       await _syncPendingItems();
       await _syncUserData();
       await _syncDelegacias();
+      _updateStatus(SyncStatus.idle);
     } catch (e) {
       print('Erro durante sincronização: $e');
+      _updateStatus(SyncStatus.error);
     } finally {
       _isSyncing = false;
     }
   }
 
+  void _updateStatus(SyncStatus status) {
+    _currentStatus = status;
+    _statusController.add(status);
+  }
+
   Future<void> _syncPendingItems() async {
     final unsyncedItems = await _localDatabase.getUnsyncedItems();
-    
+
     for (final item in unsyncedItems) {
       try {
         final id = item['id'] as int;
@@ -108,7 +132,11 @@ class AdvancedSyncService {
     }
   }
 
-  Future<bool> _syncSosItem(int entityId, String operation, Map<String, dynamic> data) async {
+  Future<bool> _syncSosItem(
+    int entityId,
+    String operation,
+    Map<String, dynamic> data,
+  ) async {
     try {
       switch (operation) {
         case 'create':
@@ -136,7 +164,11 @@ class AdvancedSyncService {
     }
   }
 
-  Future<bool> _syncContactItem(int entityId, String operation, Map<String, dynamic> data) async {
+  Future<bool> _syncContactItem(
+    int entityId,
+    String operation,
+    Map<String, dynamic> data,
+  ) async {
     try {
       switch (operation) {
         case 'create':
@@ -147,12 +179,17 @@ class AdvancedSyncService {
             // Atualizar o registro local com o ID do servidor
             await _localDatabase.updateEmergencyContact(serverContact);
             // Marcar como sincronizado
-            await _localDatabase.markEmergencyContactAsSynced(serverContact.id!);
+            await _localDatabase.markEmergencyContactAsSynced(
+              serverContact.id!,
+            );
             return true;
           }
           return false;
         case 'update':
-          final response = await _apiService.put('/contacts/$entityId', data: data);
+          final response = await _apiService.put(
+            '/contacts/$entityId',
+            data: data,
+          );
           if (response.statusCode == 200) {
             // Marcar como sincronizado
             await _localDatabase.markEmergencyContactAsSynced(entityId);
@@ -208,7 +245,10 @@ class AdvancedSyncService {
     _triggerSync(); // Tentar sincronizar imediatamente
   }
 
-  Future<void> queueContactSync(EmergencyContact contact, String operation) async {
+  Future<void> queueContactSync(
+    EmergencyContact contact,
+    String operation,
+  ) async {
     await _localDatabase.addToSyncQueue(
       entityType: 'contact',
       entityId: contact.id ?? 0,
@@ -216,5 +256,19 @@ class AdvancedSyncService {
       data: contact.toJson(),
     );
     _triggerSync(); // Tentar sincronizar imediatamente
+  }
+
+  Future<int> getPendingItemsCount() async {
+    try {
+      final unsyncedItems = await _localDatabase.getUnsyncedItems();
+      return unsyncedItems.length;
+    } catch (e) {
+      print('Erro ao contar itens pendentes: $e');
+      return 0;
+    }
+  }
+
+  Future<void> forceSync() async {
+    _triggerSync();
   }
 }

@@ -6,42 +6,60 @@ import '../services/api_service.dart';
 import '../widgets/contact_import_sheet.dart';
 
 /// Tela de contatos de emergência com foco na importação do celular
-class EmergencyContactsScreenV2 extends StatefulWidget {
-  const EmergencyContactsScreenV2({super.key});
+class EmergencyContactsScreen extends StatefulWidget {
+  const EmergencyContactsScreen({super.key});
 
   @override
-  State<EmergencyContactsScreenV2> createState() => _EmergencyContactsScreenV2State();
+  State<EmergencyContactsScreen> createState() =>
+      _EmergencyContactsScreenState();
 }
 
-class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
+class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
+    with SingleTickerProviderStateMixin {
   late final EmergencyContactService _contactService;
-  List<EmergencyContact> _contacts = [];
+  List<EmergencyContact> _filteredContacts = [];
+  List<String> _availableRelationships = [];
   bool _isLoading = true;
   String? _error;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  String? _selectedFilter;
 
   @override
   void initState() {
     super.initState();
     _contactService = EmergencyContactService(ApiService());
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
     _loadContacts();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadContacts() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final contacts = await _contactService.getContacts();
-      if (mounted) {
-        setState(() {
-          _contacts = contacts;
-          _isLoading = false;
-        });
-      }
+      _availableRelationships = await _contactService
+          .getAvailableRelationships();
+      _availableRelationships.add('Sem parentesco');
+      _applyFilter();
+      _fadeController.forward();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -49,7 +67,39 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
           _isLoading = false;
         });
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Future<void> _applyFilter() async {
+    if (!mounted) return;
+
+    try {
+      _filteredContacts = await _contactService.getContactsFiltered(
+        relationship: _selectedFilter,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Erro ao aplicar filtro: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _setFilter(String? filter) async {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    await _applyFilter();
   }
 
   Future<void> _showImportContacts() async {
@@ -62,7 +112,7 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
       ),
       builder: (context) => const ContactImportSheet(),
     );
-    
+
     // Recarregar contatos após importação
     await _loadContacts();
   }
@@ -88,34 +138,35 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
 
   Future<bool> _showDeleteConfirmation(String contactName) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remover Contato'),
-        content: Text('Deseja remover $contactName dos contatos de emergência?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Remover Contato'),
+            content: Text(
+              'Deseja remover $contactName dos contatos de emergência?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Remover'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remover'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _showMessage(String message) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(24),
       ),
     );
@@ -124,21 +175,84 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: _buildBody(theme),
+      appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          if (_selectedFilter != null)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withAlpha(15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withAlpha(30),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedFilter!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _setFilter(null),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          PopupMenuButton<String>(
+            onSelected: _setFilter,
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: null, child: Text('Todos')),
+              ..._getUniqueParentescos().map(
+                (parentesco) =>
+                    PopupMenuItem(value: parentesco, child: Text(parentesco)),
+              ),
+            ],
+            icon: Icon(
+              Icons.filter_list_rounded,
+              color: _selectedFilter != null
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withOpacity(0.7),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showImportContacts,
-        icon: const Icon(Icons.contacts_rounded),
-        label: const Text('Importar Contatos'),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _buildBody(theme),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showImportContacts,
+        child: const Icon(Icons.contacts_rounded),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
     );
+  }
+
+  List<String> _getUniqueParentescos() {
+    return _availableRelationships;
   }
 
   Widget _buildBody(ThemeData theme) {
@@ -150,7 +264,7 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
       return _buildErrorState(theme);
     }
 
-    if (_contacts.isEmpty) {
+    if (_filteredContacts.isEmpty) {
       return _buildEmptyState(theme);
     }
 
@@ -164,13 +278,13 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
         children: [
           CircularProgressIndicator(
             color: theme.colorScheme.primary,
-            strokeWidth: 2.5,
+            strokeWidth: 2,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
-            'Carregando contatos...',
+            'Carregando...',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               color: theme.colorScheme.onSurface.withOpacity(0.6),
               fontWeight: FontWeight.w500,
             ),
@@ -183,7 +297,7 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
   Widget _buildErrorState(ThemeData theme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -209,11 +323,24 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _loadContacts,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar Novamente'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: _loadContacts,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Tentar Novamente'),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: theme.colorScheme.primary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -222,69 +349,113 @@ class _EmergencyContactsScreenV2State extends State<EmergencyContactsScreenV2> {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.contact_page_rounded,
-              size: 96,
-              color: theme.colorScheme.primary.withOpacity(0.6),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Nenhum contato de emergência',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Importe contatos do seu celular para serem notificados em emergências.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: _showImportContacts,
-              icon: const Icon(Icons.contacts_rounded),
-              label: const Text('Importar Contatos'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+    final hasFilter = _selectedFilter != null;
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withAlpha(15),
+                  shape: BoxShape.circle,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                child: Icon(
+                  hasFilter
+                      ? Icons.filter_list_rounded
+                      : Icons.contact_page_rounded,
+                  size: 40,
+                  color: theme.colorScheme.primary.withOpacity(0.6),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                hasFilter
+                    ? 'Nenhum contato encontrado'
+                    : 'Nenhum contato de emergência',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hasFilter
+                    ? 'Não há contatos com o filtro selecionado.'
+                    : 'Importe contatos do seu celular para serem notificados em emergências.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: hasFilter
+                      ? () => _setFilter(null)
+                      : _showImportContacts,
+                  icon: Icon(
+                    hasFilter
+                        ? Icons.filter_list_off_rounded
+                        : Icons.contacts_rounded,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  label: Text(
+                    hasFilter ? 'Remover filtro' : 'Importar Contatos',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildContactsList(ThemeData theme) {
-    return RefreshIndicator(
-      onRefresh: _loadContacts,
-      color: theme.colorScheme.primary,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        itemCount: _contacts.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 6),
-        itemBuilder: (context, index) {
-          final contact = _contacts[index];
-          return _ContactCard(
-            contact: contact,
-            onDelete: () => _deleteContact(contact),
-          );
-        },
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: RefreshIndicator(
+        onRefresh: _loadContacts,
+        color: theme.colorScheme.primary,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _filteredContacts.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 6),
+          itemBuilder: (context, index) {
+            final contact = _filteredContacts[index];
+            return _ContactCard(
+              contact: contact,
+              onDelete: () => _deleteContact(contact),
+            );
+          },
+        ),
       ),
     );
   }
@@ -295,10 +466,7 @@ class _ContactCard extends StatelessWidget {
   final EmergencyContact contact;
   final VoidCallback onDelete;
 
-  const _ContactCard({
-    required this.contact,
-    required this.onDelete,
-  });
+  const _ContactCard({required this.contact, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -320,10 +488,12 @@ class _ContactCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 0),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.all(16),
@@ -332,7 +502,8 @@ class _ContactCard extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
             child: Text(
               initials,
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: TextStyle(
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
               ),
@@ -340,26 +511,52 @@ class _ContactCard extends StatelessWidget {
           ),
           title: Text(
             contact.nome,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                contact.telefone,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.phone_rounded,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    contact.telefone,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               if (contact.parentesco != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  contact.parentesco!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w500,
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    contact.parentesco!,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -368,6 +565,7 @@ class _ContactCard extends StatelessWidget {
           trailing: Icon(
             Icons.drag_handle_rounded,
             color: theme.colorScheme.onSurface.withOpacity(0.3),
+            size: 16,
           ),
         ),
       ),
@@ -376,12 +574,12 @@ class _ContactCard extends StatelessWidget {
 
   String _getInitials(String name) {
     if (name.isEmpty) return '?';
-    
+
     final words = name.trim().split(' ');
     if (words.length == 1) {
       return words[0][0].toUpperCase();
     }
-    
+
     return words
         .take(2)
         .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')

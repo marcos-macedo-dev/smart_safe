@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/advanced_sync_service.dart';
 
 class SyncStatusIndicator extends StatefulWidget {
   const SyncStatusIndicator({super.key});
@@ -8,44 +9,60 @@ class SyncStatusIndicator extends StatefulWidget {
 }
 
 class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
-  bool _isSyncing = false;
+  late final AdvancedSyncService _syncService;
+  SyncStatus _currentStatus = SyncStatus.idle;
   int _pendingItems = 0;
-
-  // TODO: Implementar lógica real para monitorar status de sincronização
-  // Esta é uma implementação de exemplo que precisa ser conectada ao AdvancedSyncService
 
   @override
   void initState() {
     super.initState();
-    // Iniciar monitoramento do status de sincronização
-    _startMonitoring();
+    _syncService = AdvancedSyncService();
+    _loadPendingItems();
+    _syncService.statusStream.listen((status) {
+      if (mounted) {
+        setState(() {
+          _currentStatus = status;
+        });
+        // Recarregar contagem quando terminar sincronização
+        if (status == SyncStatus.idle) {
+          _loadPendingItems();
+        }
+      }
+    });
   }
 
-  void _startMonitoring() {
-    // TODO: Conectar com o AdvancedSyncService para obter status real
-    // Por enquanto, simulando com um timer
-    // Timer.periodic(const Duration(seconds: 5), (timer) {
-    //   if (mounted) {
-    //     setState(() {
-    //       _isSyncing = !_isSyncing;
-    //       _pendingItems = _isSyncing ? 0 : 3;
-    //     });
-    //   }
-    // });
+  Future<void> _loadPendingItems() async {
+    try {
+      final count = await _syncService.getPendingItemsCount();
+      if (mounted) {
+        setState(() {
+          _pendingItems = count;
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar itens pendentes: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_pendingItems == 0 && !_isSyncing) {
+    final isSyncing = _currentStatus == SyncStatus.syncing;
+    final hasError = _currentStatus == SyncStatus.error;
+
+    if (_pendingItems == 0 && !isSyncing && !hasError) {
       return const SizedBox.shrink();
     }
 
     return Container(
-      color: _isSyncing ? Colors.blue.shade100 : Colors.orange.shade100,
+      color: isSyncing
+          ? Colors.blue.shade100
+          : hasError
+          ? Colors.red.shade100
+          : Colors.orange.shade100,
       padding: const EdgeInsets.all(8),
       child: Row(
         children: [
-          if (_isSyncing) ...[
+          if (isSyncing) ...[
             const SizedBox(
               width: 16,
               height: 16,
@@ -63,12 +80,31 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-          ] else ...[
-            const Icon(
-              Icons.sync_problem,
-              color: Colors.orange,
-              size: 16,
+          ] else if (hasError) ...[
+            const Icon(Icons.error, color: Colors.red, size: 16),
+            const SizedBox(width: 8),
+            const Text(
+              'Erro na sincronização',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+            const Spacer(),
+            TextButton(
+              onPressed: _syncService.forceSync,
+              child: const Text(
+                'Tentar novamente',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ] else ...[
+            const Icon(Icons.sync_problem, color: Colors.orange, size: 16),
             const SizedBox(width: 8),
             Text(
               '$_pendingItems itens aguardando sincronização',
@@ -80,9 +116,7 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator> {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () {
-                // TODO: Forçar sincronização
-              },
+              onPressed: _syncService.forceSync,
               child: const Text(
                 'Sincronizar agora',
                 style: TextStyle(

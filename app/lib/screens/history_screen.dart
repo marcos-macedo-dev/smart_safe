@@ -17,9 +17,11 @@ class _HistoryScreenState extends State<HistoryScreen>
     with SingleTickerProviderStateMixin {
   late final SosService _sosService;
   List<SosRecord> _sosRecords = [];
+  List<SosRecord> _filteredRecords = [];
   bool _isLoading = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  SosStatus? _selectedFilter;
 
   @override
   void initState() {
@@ -46,7 +48,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     setState(() => _isLoading = true);
     try {
       final fetchedRecords = await _sosService.getSosRecords();
-      setState(() => _sosRecords = fetchedRecords);
+      setState(() {
+        _sosRecords = fetchedRecords;
+        _applyFilter();
+      });
       _fadeController.forward();
     } catch (e) {
       if (mounted) {
@@ -55,6 +60,23 @@ class _HistoryScreenState extends State<HistoryScreen>
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _applyFilter() {
+    if (_selectedFilter == null) {
+      _filteredRecords = _sosRecords;
+    } else {
+      _filteredRecords = _sosRecords
+          .where((record) => record.status == _selectedFilter)
+          .toList();
+    }
+  }
+
+  void _setFilter(SosStatus? status) {
+    setState(() {
+      _selectedFilter = status;
+      _applyFilter();
+    });
   }
 
   void _showMessage(String msg) {
@@ -73,6 +95,21 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
+  String _getStatusText(SosStatus status) {
+    switch (status) {
+      case SosStatus.pendente:
+        return 'Pendente';
+      case SosStatus.ativo:
+        return 'Ativo';
+      case SosStatus.aguardando_autoridade:
+        return 'Aguardando Autoridade';
+      case SosStatus.fechado:
+        return 'Fechado';
+      case SosStatus.cancelado:
+        return 'Cancelado';
+    }
+  }
+
   String _timeAgo(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -87,23 +124,106 @@ class _HistoryScreenState extends State<HistoryScreen>
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? _buildLoadingState(theme)
-                  : _sosRecords.isEmpty
-                  ? _buildEmptyState(theme)
-                  : _buildHistoryList(theme),
+      appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          if (_selectedFilter != null)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withAlpha(15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withAlpha(30),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getStatusText(_selectedFilter!),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _setFilter(null),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          PopupMenuButton<SosStatus?>(
+            onSelected: _setFilter,
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: null, child: Text('Todos')),
+              ...SosStatus.values.map((status) {
+                final dummyRecord = SosRecord(
+                  id: 0,
+                  usuario_id: 0,
+                  caminho_audio: null,
+                  latitude: 0,
+                  longitude: 0,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                  status: status,
+                );
+                return PopupMenuItem(
+                  value: status,
+                  child: Row(
+                    children: [
+                      Icon(
+                        dummyRecord.statusIcon,
+                        size: 16,
+                        color: dummyRecord.statusColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(_getStatusText(status)),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            icon: Icon(
+              Icons.filter_list_rounded,
+              color: _selectedFilter != null
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withOpacity(0.7),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingState(theme)
+                    : _filteredRecords.isEmpty
+                    ? _buildEmptyState(theme)
+                    : _buildHistoryList(theme),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
 
   Widget _buildLoadingState(ThemeData theme) {
     return Center(
@@ -112,13 +232,13 @@ class _HistoryScreenState extends State<HistoryScreen>
         children: [
           CircularProgressIndicator(
             color: theme.colorScheme.primary,
-            strokeWidth: 2.5,
+            strokeWidth: 2,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
-            'Carregando histórico...',
+            'Carregando...',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               color: theme.colorScheme.onSurface.withOpacity(0.6),
               fontWeight: FontWeight.w500,
             ),
@@ -129,32 +249,35 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildEmptyState(ThemeData theme) {
+    final hasFilter = _selectedFilter != null;
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 120,
-                height: 120,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withAlpha(15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.history_rounded,
-                  size: 60,
+                  hasFilter ? Icons.filter_list_rounded : Icons.history_rounded,
+                  size: 40,
                   color: theme.colorScheme.primary.withOpacity(0.6),
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               Text(
-                'Nenhum registro encontrado',
+                hasFilter
+                    ? 'Nenhum SOS encontrado'
+                    : 'Nenhum registro encontrado',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -162,40 +285,46 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Você ainda não criou nenhum SOS.\nQuando criar, aparecerá aqui.',
+                hasFilter
+                    ? 'Não há SOS com o status selecionado.'
+                    : 'Você ainda não criou nenhum SOS.',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
                   fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 44,
                 child: OutlinedButton.icon(
-                  onPressed: _loadSosRecords,
+                  onPressed: hasFilter
+                      ? () => _setFilter(null)
+                      : _loadSosRecords,
                   icon: Icon(
-                    Icons.refresh_rounded,
-                    size: 18,
+                    hasFilter
+                        ? Icons.filter_list_off_rounded
+                        : Icons.refresh_rounded,
+                    size: 16,
                     color: theme.colorScheme.primary,
                   ),
                   label: Text(
-                    'Atualizar',
+                    hasFilter ? 'Remover filtro' : 'Atualizar',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: theme.colorScheme.primary,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      color: theme.colorScheme.primary.withAlpha(40),
                       width: 1,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -214,10 +343,10 @@ class _HistoryScreenState extends State<HistoryScreen>
         onRefresh: _loadSosRecords,
         color: theme.colorScheme.primary,
         child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          itemCount: _sosRecords.length,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _filteredRecords.length,
           itemBuilder: (context, index) {
-            final record = _sosRecords[index];
+            final record = _filteredRecords[index];
             return _buildSosCard(record, theme, index);
           },
         ),
@@ -228,11 +357,11 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildSosCard(SosRecord record, ThemeData theme, int index) {
     return Container(
       margin: EdgeInsets.only(
-        bottom: index == _sosRecords.length - 1 ? 24 : 16,
+        bottom: index == _filteredRecords.length - 1 ? 16 : 12,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
       ),
       child: Column(
@@ -242,7 +371,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           _buildCardHeader(record, theme),
           // Divider sutil
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Divider(
               color: theme.colorScheme.outline.withOpacity(0.1),
               thickness: 1,
@@ -259,7 +388,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Widget _buildCardHeader(SosRecord record, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -269,16 +398,16 @@ class _HistoryScreenState extends State<HistoryScreen>
               Text(
                 'SOS #${record.id}',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 _timeAgo(record.createdAt),
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
                   fontWeight: FontWeight.w400,
                 ),
@@ -286,21 +415,21 @@ class _HistoryScreenState extends State<HistoryScreen>
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: record.statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: record.statusColor.withOpacity(0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(record.statusIcon, size: 14, color: record.statusColor),
-                const SizedBox(width: 6),
+                Icon(record.statusIcon, size: 12, color: record.statusColor),
+                const SizedBox(width: 4),
                 Text(
                   record.statusText,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: record.statusColor,
                     fontWeight: FontWeight.w600,
                   ),
@@ -315,7 +444,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Widget _buildCardInfo(SosRecord record, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           // Data
@@ -325,7 +454,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             record.formattedCreatedAt,
             theme,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Localização
           _buildInfoRow(
             Icons.location_on_rounded,
@@ -333,9 +462,15 @@ class _HistoryScreenState extends State<HistoryScreen>
             '${record.latitude.toStringAsFixed(4)}, ${record.longitude.toStringAsFixed(4)}',
             theme,
           ),
+          // Mídia
+          if (record.fullCaminhoAudioUrl != null ||
+              record.fullCaminhoVideoUrl != null) ...[
+            const SizedBox(height: 8),
+            _buildMediaRow(record, theme),
+          ],
           // Encerramento
           if (record.encerrado_em != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildInfoRow(
               Icons.check_circle_rounded,
               'Encerrado em',
@@ -345,7 +480,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           ],
           // Última atualização
           if (record.updatedAt != record.createdAt) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildInfoRow(
               Icons.update_rounded,
               'Atualizado em',
@@ -358,6 +493,99 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
+  Widget _buildMediaRow(SosRecord record, ThemeData theme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.perm_media_rounded,
+          size: 14,
+          color: theme.colorScheme.primary.withOpacity(0.7),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mídia',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  if (record.fullCaminhoAudioUrl != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.mic_rounded, size: 10, color: Colors.blue),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Áudio',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (record.fullCaminhoAudioUrl != null &&
+                      record.fullCaminhoVideoUrl != null)
+                    const SizedBox(width: 6),
+                  if (record.fullCaminhoVideoUrl != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.videocam_rounded,
+                            size: 10,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Vídeo',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoRow(
     IconData icon,
     String label,
@@ -367,8 +595,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: theme.colorScheme.primary.withOpacity(0.7)),
-        const SizedBox(width: 12),
+        Icon(icon, size: 14, color: theme.colorScheme.primary.withOpacity(0.7)),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,16 +604,16 @@ class _HistoryScreenState extends State<HistoryScreen>
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
@@ -404,7 +632,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         (record.fullCaminhoVideoUrl != null &&
             record.fullCaminhoVideoUrl!.isNotEmpty);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Row(
         children: [
           // Botão Ver Mapa
@@ -429,7 +657,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           ),
           // Botão Ver Mídia (se disponível)
           if (hasMedia) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: _buildActionButton(
                 icon: Icons.play_circle_rounded,
@@ -460,15 +688,15 @@ class _HistoryScreenState extends State<HistoryScreen>
     required ThemeData theme,
   }) {
     return SizedBox(
-      height: 44,
+      height: 40,
       child: isPrimary
           ? ElevatedButton.icon(
               onPressed: onPressed,
-              icon: Icon(icon, size: 18),
+              icon: Icon(icon, size: 16),
               label: Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -477,17 +705,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                 foregroundColor: theme.colorScheme.onPrimary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             )
           : OutlinedButton.icon(
               onPressed: onPressed,
-              icon: Icon(icon, size: 18),
+              icon: Icon(icon, size: 16),
               label: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.primary,
                 ),
@@ -499,7 +727,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 foregroundColor: theme.colorScheme.primary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),

@@ -7,7 +7,7 @@ import '../models/delegacia.dart';
 
 class ApiService {
   static final Dio _dio = Dio(
-    BaseOptions(baseUrl: 'http://192.168.18.8:3002/api'),
+    BaseOptions(baseUrl: 'http://10.214.43.103:3002/api'),
   );
   static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
@@ -37,26 +37,39 @@ class ApiService {
         },
         onError: (DioException error, handler) async {
           if (error.response?.statusCode == 401) {
-            String? refreshToken = await _secureStorage.read(key: 'refreshToken');
+            String? refreshToken = await _secureStorage.read(
+              key: 'refreshToken',
+            );
             if (refreshToken != null) {
               try {
                 final newTokens = await _refreshToken(refreshToken);
                 if (newTokens != null) {
                   // Update tokens in storage
-                  await _secureStorage.write(key: 'token', value: newTokens['token']);
-                  await _secureStorage.write(key: 'refreshToken', value: newTokens['refreshToken']);
+                  await _secureStorage.write(
+                    key: 'token',
+                    value: newTokens['token'],
+                  );
+                  await _secureStorage.write(
+                    key: 'refreshToken',
+                    value: newTokens['refreshToken'],
+                  );
 
                   // Retry the original request with the new token
-                  error.requestOptions.headers['Authorization'] = 'Bearer ${newTokens['token']}';
-                  return handler.resolve(await _dio.fetch(error.requestOptions));
+                  error.requestOptions.headers['Authorization'] =
+                      'Bearer ${newTokens['token']}';
+                  return handler.resolve(
+                    await _dio.fetch(error.requestOptions),
+                  );
                 }
               } catch (e) {
                 print('Erro ao tentar refresh do token: $e');
               }
             }
-            // If refresh token is null or refresh failed, logout user
-            await logout();
-            // TODO: Redirect to login screen (requires Navigator context, usually handled outside ApiService)
+            // If refresh token is null or refresh failed, just let the request fail
+            // Don't automatically logout - let the calling code handle authentication errors
+            print(
+              'Token expirado e não foi possível renovar. Requisição falhou com 401.',
+            );
           }
           return handler.next(error);
         },
@@ -121,7 +134,10 @@ class ApiService {
             await _secureStorage.write(key: 'token', value: token);
           }
           if (refreshToken != null) {
-            await _secureStorage.write(key: 'refreshToken', value: refreshToken);
+            await _secureStorage.write(
+              key: 'refreshToken',
+              value: refreshToken,
+            );
           }
           if (userId != null) {
             await _secureStorage.write(key: 'userId', value: userId);
@@ -155,7 +171,9 @@ class ApiService {
       }
       print('ApiService - URL da requisição: /users/$userId'); // Log para URL
       Response response = await _dio.get('/users/$userId');
-      print('ApiService - Resposta do backend: ${response.data}'); // Log para resposta do backend
+      print(
+        'ApiService - Resposta do backend: ${response.data}',
+      ); // Log para resposta do backend
       if (response.statusCode == 200) {
         return User.fromJson(response.data);
       }
@@ -166,9 +184,14 @@ class ApiService {
     }
   }
 
-  static Future<bool> updateUser(int userId, Map<String, dynamic> userData) async {
+  static Future<bool> updateUser(
+    int userId,
+    Map<String, dynamic> userData,
+  ) async {
     try {
-      print('ApiService - Enviando atualização para /users/$userId com dados: $userData');
+      print(
+        'ApiService - Enviando atualização para /users/$userId com dados: $userData',
+      );
       Response response = await _dio.put('/users/$userId', data: userData);
       print('ApiService - Resposta de atualização: ${response.statusCode}');
       return response.statusCode == 200;
@@ -204,7 +227,9 @@ class ApiService {
       if (response.statusCode == 200 && response.data != null) {
         return Media.fromJson(response.data);
       }
-      print('ApiService: Falha no upload do arquivo. Status: ${response.statusCode}, Dados: ${response.data}');
+      print(
+        'ApiService: Falha no upload do arquivo. Status: ${response.statusCode}, Dados: ${response.data}',
+      );
       return null;
     } catch (e) {
       print('ApiService: Erro ao fazer upload do arquivo: $e');
@@ -294,9 +319,11 @@ class ApiService {
     }
   }
 
-  
-
-  static Future<Map<String, dynamic>> resetPasswordWithOTP(String email, String otp, String newPassword) async {
+  static Future<Map<String, dynamic>> resetPasswordWithOTP(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
     try {
       final response = await _dio.post(
         '/auth/reset-password/otp',
@@ -312,14 +339,14 @@ class ApiService {
     }
   }
 
-  static Future<bool> changePassword(String currentPassword, String newPassword) async {
+  static Future<bool> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       final response = await _dio.post(
         '/auth/change-password',
-        data: {
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        },
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
       );
       return response.statusCode == 200;
     } catch (e) {

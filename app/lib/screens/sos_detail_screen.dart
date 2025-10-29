@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import '../services/offline_map_service.dart';
 
 class SosDetailScreen extends StatefulWidget {
   final double latitude;
@@ -65,7 +66,9 @@ class _SosDetailScreenState extends State<SosDetailScreen> {
       if (!serviceEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Serviços de localização desativados.')),
+            const SnackBar(
+              content: Text('Serviços de localização desativados.'),
+            ),
           );
         }
         return;
@@ -88,8 +91,10 @@ class _SosDetailScreenState extends State<SosDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'Permissão de localização negada permanentemente. Habilite nas configurações.')),
+              content: Text(
+                'Permissão de localização negada permanentemente. Habilite nas configurações.',
+              ),
+            ),
           );
         }
         return;
@@ -103,7 +108,9 @@ class _SosDetailScreenState extends State<SosDetailScreen> {
             markerId: const MarkerId('user_location'),
             position: _userLocation!,
             infoWindow: const InfoWindow(title: 'Sua posição'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
           ),
         );
       });
@@ -138,9 +145,78 @@ class _SosDetailScreenState extends State<SosDetailScreen> {
       _currentMapType = _currentMapType == MapType.normal
           ? MapType.satellite
           : _currentMapType == MapType.satellite
-              ? MapType.hybrid
-              : MapType.normal;
+          ? MapType.hybrid
+          : MapType.normal;
     });
+  }
+
+  void _showOfflineMapDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Mapas Offline'),
+          content: const Text(
+            'Deseja fazer download desta área do mapa para uso offline? '
+            'Isso permitirá visualizar o mapa mesmo sem conexão com a internet.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _downloadOfflineRegion();
+              },
+              child: const Text('Fazer Download'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadOfflineRegion() async {
+    try {
+      final offlineMapService = OfflineMapService();
+
+      // Calcular bounds da área de emergência (SOS + raio de 200m)
+      final bounds = offlineMapService.calculateEmergencyBounds(
+        _sosLocation,
+        radiusKm: 0.2, // 200 metros = 0.2 km
+      );
+
+      final success = await offlineMapService.downloadOfflineRegion(
+        name: 'Área de Emergência - SOS',
+        bounds: bounds,
+        minZoom: 12,
+        maxZoom: 18,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Mapa offline baixado com sucesso!'
+                  : 'Erro ao baixar mapa offline. Verifique sua conexão.',
+            ),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao baixar mapa: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -200,6 +276,11 @@ class _SosDetailScreenState extends State<SosDetailScreen> {
             icon: const Icon(Icons.layers),
             onPressed: _toggleMapType,
             tooltip: 'Alterar tipo de mapa',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _showOfflineMapDialog,
+            tooltip: 'Baixar mapa offline',
           ),
           IconButton(
             icon: const Icon(Icons.my_location),

@@ -40,7 +40,7 @@ module.exports = {
         allowNull: true
       },
       genero: {
-        type: Sequelize.ENUM('Feminino', 'Nao_Binario', 'Outro'),
+        type: Sequelize.ENUM('Feminino', 'Nao_Binario', 'Masculino', 'Outro'),
         allowNull: false,
         defaultValue: 'Outro'
       },

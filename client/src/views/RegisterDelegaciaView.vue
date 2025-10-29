@@ -9,7 +9,9 @@
       </header>
 
       <form @submit.prevent="handleSubmit" class="space-y-5" novalidate>
-        <div class="rounded-2xl border border-zinc-700 bg-zinc-800/40 px-4 py-3 text-xs text-gray-300">
+        <div
+          class="rounded-2xl border border-zinc-700 bg-zinc-800/40 px-4 py-3 text-xs text-gray-300"
+        >
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-center gap-2">
               <MapPin class="h-3.5 w-3.5 text-emerald-400" />
@@ -143,7 +145,9 @@
           role="dialog"
         >
           <div class="absolute inset-0 bg-black/60" @click="closeMapModal"></div>
-          <div class="relative w-full max-w-2xl rounded-3xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+          <div
+            class="relative w-full max-w-2xl rounded-3xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl"
+          >
             <header class="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h2 class="text-lg font-semibold text-white">Selecionar localização</h2>
@@ -202,7 +206,9 @@
                 Nenhum resultado encontrado. Tente outros termos ou seja mais específico.
               </p>
 
-              <div class="h-72 w-full overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900">
+              <div
+                class="h-72 w-full overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900"
+              >
                 <LMap
                   ref="mapRef"
                   v-model:zoom="mapState.zoom"
@@ -221,7 +227,9 @@
               </div>
             </div>
 
-            <footer class="mt-4 flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            <footer
+              class="mt-4 flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+            >
               <span>
                 Coordenadas atuais:
                 <span class="font-semibold text-white">
@@ -302,6 +310,10 @@ const mapOptions = {
   attributionControl: true,
 }
 
+const SEARCH_KEYWORDS = ['delegacia', 'polícia', 'policia', 'police', 'civil', 'militar']
+const MAX_SEARCH_RESULTS = 12
+const MAX_QUERY_VARIATIONS = 8
+
 Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -341,38 +353,108 @@ async function handleSearch() {
     searchResults.value = []
     hasSearched.value = false
 
-    const params = new URLSearchParams({
-      format: 'jsonv2',
-      q: query,
-      addressdetails: '1',
-      limit: '6',
-    })
+    const focus = getSearchFocus()
+    const variations = buildSearchQueries(query)
+    const aggregatedResults = new Map()
+    let hadSuccessfulResponse = false
 
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'pt-BR',
-      },
-      signal: searchAbortController.signal,
-    })
+    for (let index = 0; index < variations.length; index += 1) {
+      if (aggregatedResults.size >= MAX_SEARCH_RESULTS) {
+        break
+      }
 
-    if (!response.ok) {
+      const variant = variations[index]
+      const params = new URLSearchParams({
+        format: 'jsonv2',
+        q: variant,
+        addressdetails: '1',
+        limit: '6',
+        dedupe: '1',
+        namedetails: '1',
+        extratags: '1',
+        countrycodes: 'br',
+      })
+
+      if (focus) {
+        const radius = 0.6
+        const left = focus.lng - radius
+        const right = focus.lng + radius
+        const top = focus.lat + radius
+        const bottom = focus.lat - radius
+        params.set('viewbox', `${left},${top},${right},${bottom}`)
+        params.set('bounded', '1')
+      }
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Accept-Language': 'pt-BR',
+          },
+          signal: searchAbortController.signal,
+        },
+      )
+
+      if (!response.ok) {
+        continue
+      }
+
+      const data = await response.json()
+      hadSuccessfulResponse = true
+
+      data.forEach((item) => {
+        if (aggregatedResults.size >= MAX_SEARCH_RESULTS) {
+          return
+        }
+        if (aggregatedResults.has(item.place_id)) {
+          return
+        }
+        const prepared = prepareSearchResult(item, index, focus)
+        aggregatedResults.set(item.place_id, prepared)
+      })
+    }
+
+    if (!hadSuccessfulResponse) {
       toast.error('Não foi possível buscar no mapa agora. Tente novamente.')
       return
     }
 
-    const data = await response.json()
+    const sortedResults = Array.from(aggregatedResults.values()).sort((a, b) => {
+      if (a.matchRank !== b.matchRank) {
+        return a.matchRank - b.matchRank
+      }
 
-    searchResults.value = data.map((item) => {
-      const parts = (item.display_name || '').split(',').map((part) => part.trim()).filter(Boolean)
-      const [title, ...rest] = parts
+      const distanceA = Number.isFinite(a.distanceKm) ? a.distanceKm : Number.POSITIVE_INFINITY
+      const distanceB = Number.isFinite(b.distanceKm) ? b.distanceKm : Number.POSITIVE_INFINITY
+      if (distanceA !== distanceB) {
+        return distanceA - distanceB
+      }
+
+      if (a.variantIndex !== b.variantIndex) {
+        return a.variantIndex - b.variantIndex
+      }
+
+      return (b.importance || 0) - (a.importance || 0)
+    })
+
+    searchResults.value = sortedResults.map((item) => {
+      const distanceKm =
+        Number.isFinite(item.distanceKm) && item.distanceKm > 0.1 ? item.distanceKm : null
+      let subtitleText = item.subtitle
+
+      if (distanceKm !== null) {
+        subtitleText = subtitleText
+          ? `${subtitleText} • aprox. ${distanceKm.toFixed(1)} km`
+          : `Aprox. ${distanceKm.toFixed(1)} km do ponto selecionado`
+      }
 
       return {
         place_id: item.place_id,
-        lat: parseFloat(item.lat),
-        lon: parseFloat(item.lon),
-        title: title || 'Local encontrado',
-        subtitle: rest.join(', '),
+        lat: item.lat,
+        lon: item.lon,
+        title: item.title,
+        subtitle: subtitleText.trim(),
       }
     })
     hasSearched.value = true
@@ -471,6 +553,176 @@ watch(showMapModal, (visible) => {
 let reverseGeocodeAbortController = null
 let searchAbortController = null
 
+function normalizeQueryString(raw) {
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s*-\s*/g, ' - ')                       
+    .replace(/(\d+)\s*-\s*(\d+)/g, '$1-$2')
+    .replace(/,\s*-\s*/g, ', ')
+    .replace(/-\s*,/g, ', ')
+    .replace(/,\s*$/, '')
+    .replace(/-\s*$/, '')
+    .trim()
+}
+
+function createAddressVariants(query) {
+  const variants = new Set()
+  const base = normalizeQueryString(query)
+  if (!base) {
+    return []
+  }
+  variants.add(base)
+
+  const withoutCEP = normalizeQueryString(base.replace(/\b\d{5}(?:-?\d{3})?\b/gi, ''))
+  if (withoutCEP && withoutCEP !== base) {
+    variants.add(withoutCEP)
+  }
+
+  const singleNumber = normalizeQueryString(base.replace(/(\d+)\s*-\s*(\d+)/g, '$1'))
+  if (singleNumber && singleNumber !== base) {
+    variants.add(singleNumber)
+    const singleNumberWithoutCEP = normalizeQueryString(
+      singleNumber.replace(/\b\d{5}(?:-?\d{3})?\b/gi, ''),
+    )
+    if (singleNumberWithoutCEP && singleNumberWithoutCEP !== singleNumber) {
+      variants.add(singleNumberWithoutCEP)
+    }
+  }
+
+  const withoutNumbers = normalizeQueryString(base.replace(/\b\d+\b/g, '').replace(/\s*,\s*,/g, ','))
+  if (withoutNumbers && withoutNumbers !== base) {
+    variants.add(withoutNumbers)
+  }
+
+  const beforeDash = base.split(' - ')[0]
+  if (beforeDash && beforeDash !== base) {
+    variants.add(normalizeQueryString(beforeDash))
+  }
+
+  const components = base.split(',')
+  if (components.length > 2) {
+    const withoutLastComponent = normalizeQueryString(components.slice(0, -1).join(','))
+    if (withoutLastComponent && withoutLastComponent !== base) {
+      variants.add(withoutLastComponent)
+    }
+  }
+
+  return Array.from(variants)
+}
+
+function buildSearchQueries(query) {
+  const baseVariants = createAddressVariants(query)
+  const finalVariants = []
+  const seen = new Set()
+
+  const pushVariant = (value) => {
+    const normalized = normalizeQueryString(value)
+    if (!normalized || seen.has(normalized.toLowerCase())) {
+      return
+    }
+    seen.add(normalized.toLowerCase())
+    finalVariants.push(normalized)
+  }
+
+  baseVariants.forEach(pushVariant)
+
+  baseVariants.forEach((variant) => {
+    const lower = variant.toLowerCase()
+    if (lower.includes('delegacia')) {
+      return
+    }
+    pushVariant(`${variant} delegacia`)
+    pushVariant(`Delegacia ${variant}`)
+  })
+
+  baseVariants.forEach((variant) => {
+    const lower = variant.toLowerCase()
+    if (lower.includes('polícia') || lower.includes('policia')) {
+      return
+    }
+    pushVariant(`${variant} polícia civil`)
+  })
+
+  return finalVariants.slice(0, MAX_QUERY_VARIATIONS)
+}
+
+function getSearchFocus() {
+  const lat = parseFloat(formData.delegacia.latitude)
+  const lng = parseFloat(formData.delegacia.longitude)
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lat, lng }
+  }
+
+  if (Array.isArray(mapState.marker) && mapState.marker.length === 2) {
+    const [markerLat, markerLng] = mapState.marker
+    if (Number.isFinite(markerLat) && Number.isFinite(markerLng)) {
+      return { lat: markerLat, lng: markerLng }
+    }
+  }
+
+  return null
+}
+
+function computeDistanceKm(lat1, lon1, lat2, lon2) {
+  if (!Number.isFinite(lat1) || !Number.isFinite(lon1) || !Number.isFinite(lat2) || !Number.isFinite(lon2)) {
+    return null
+  }
+
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const R = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+function prepareSearchResult(item, variantIndex, focus) {
+  const lat = parseFloat(item.lat)
+  const lon = parseFloat(item.lon)
+
+  const rawParts = (item.display_name || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  const [rawTitle, ...restParts] = rawParts
+
+  const title =
+    item.namedetails?.name ||
+    rawTitle ||
+    item.address?.police ||
+    item.address?.amenity ||
+    'Local encontrado'
+
+  const subtitleRaw = restParts.join(', ') || item.address?.city || item.address?.state || ''
+  const subtitle = subtitleRaw.trim()
+  const combinedText = `${title} ${subtitle}`.toLowerCase()
+  const hasKeyword = SEARCH_KEYWORDS.some((keyword) => combinedText.includes(keyword))
+  const isPoliceAmenity = item.class === 'amenity' && item.type === 'police'
+  const matchRank = isPoliceAmenity ? 0 : hasKeyword ? 1 : 2
+  const importance = Number.isFinite(item.importance)
+    ? item.importance
+    : parseFloat(item.importance) || 0
+
+  const distanceKm = focus ? computeDistanceKm(focus.lat, focus.lng, lat, lon) : null
+
+  return {
+    place_id: item.place_id,
+    lat,
+    lon,
+    title,
+    subtitle,
+    matchRank,
+    variantIndex,
+    importance,
+    distanceKm,
+  }
+}
+
 function resetSearch() {
   searchAbortController?.abort()
   searchAbortController = null
@@ -492,13 +744,16 @@ async function reverseGeocode(lat, lng) {
       addressdetails: '1',
     })
 
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'pt-BR',
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'pt-BR',
+        },
+        signal: reverseGeocodeAbortController.signal,
       },
-      signal: reverseGeocodeAbortController.signal,
-    })
+    )
 
     if (!response.ok) {
       return
@@ -508,10 +763,17 @@ async function reverseGeocode(lat, lng) {
     const address = data.address || {}
 
     const cidade =
-      address.city || address.town || address.municipality || address.village || address.state_district
+      address.city ||
+      address.town ||
+      address.municipality ||
+      address.village ||
+      address.state_district
     const uf = address.state || address.region
-    const enderecoPartes = [address.road || address.pedestrian || address.cycleway, address.suburb || address.neighbourhood, cidade && uf ? `${cidade} - ${uf}` : cidade || uf]
-      .filter(Boolean)
+    const enderecoPartes = [
+      address.road || address.pedestrian || address.cycleway,
+      address.suburb || address.neighbourhood,
+      cidade && uf ? `${cidade} - ${uf}` : cidade || uf,
+    ].filter(Boolean)
 
     if (enderecoPartes.length) {
       formData.delegacia.endereco = enderecoPartes.join(', ')

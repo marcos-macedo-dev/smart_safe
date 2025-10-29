@@ -55,7 +55,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     genero: {
-      type: DataTypes.ENUM('Feminino', 'Nao_Binario', 'Outro'),
+      type: DataTypes.ENUM('Feminino', 'Nao_Binario', 'Masculino', 'Outro'),
       allowNull: false,
       defaultValue: 'Outro'
     },

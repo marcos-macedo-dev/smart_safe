@@ -1,14 +1,17 @@
-import 'dart:io'; // Import dart:io
+import 'dart:io';
 import '../models/sos_record.dart';
 import 'api_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../database/local_database.dart'; // Import LocalDatabase
 import 'package:connectivity_plus/connectivity_plus.dart'; // Adicionar este import
+import 'advanced_sync_service.dart';
 
 class SosService {
   final ApiService _apiService;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final LocalDatabase _localDatabase = LocalDatabase(); // LocalDatabase instance
+  final LocalDatabase _localDatabase =
+      LocalDatabase(); // LocalDatabase instance
+  final AdvancedSyncService _advancedSyncService = AdvancedSyncService();
   bool _isSyncing = false; // Adicionar esta flag
 
   SosService(this._apiService);
@@ -32,12 +35,18 @@ class SosService {
             .toList();
       }
       // Se o status code não for 200, ou dados inválidos, tenta buscar localmente
-      print('SosService: Falha ao buscar SOSs online (status: ${response.statusCode}), tentando buscar localmente.');
-      return await _localDatabase.getUnsyncedSosRecords(); // Retorna os não sincronizados, que são os locais
+      print(
+        'SosService: Falha ao buscar SOSs online (status: ${response.statusCode}), tentando buscar localmente.',
+      );
+      return await _localDatabase
+          .getUnsyncedSosRecords(); // Retorna os não sincronizados, que são os locais
     } catch (e) {
       // Se houver um erro de conexão ou qualquer outra exceção, busca localmente
-      print('SosService: Erro ao buscar SOSs online: $e, tentando buscar localmente.');
-      return await _localDatabase.getUnsyncedSosRecords(); // Retorna os não sincronizados, que são os locais
+      print(
+        'SosService: Erro ao buscar SOSs online: $e, tentando buscar localmente.',
+      );
+      return await _localDatabase
+          .getUnsyncedSosRecords(); // Retorna os não sincronizados, que são os locais
     }
   }
 
@@ -50,71 +59,147 @@ class SosService {
     final usuarioId = await _getUserId();
     if (usuarioId == null) return null;
 
-    String? finalCaminhoAudio = caminhoAudio;
-    String? finalCaminhoVideo = caminhoVideo;
-
-    // Attempt to upload media if it's a local path (online scenario)
-    if (caminhoAudio != null && !caminhoAudio.startsWith('http')) {
-      try {
-        final uploadedMedia = await ApiService.uploadFile(File(caminhoAudio));
-        if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
-          finalCaminhoAudio = uploadedMedia.caminho; // GCS URL
-          await File(caminhoAudio).delete(); // Delete local file after upload
-        } else {
-          print('Falha ao enviar áudio para GCS, salvando SOS localmente.');
-          // If media upload fails, save SOS locally with local media path
-          return await _saveSosLocally(usuarioId, latitude, longitude, caminhoAudio, caminhoVideo);
-        }
-      } catch (e) {
-        print('Erro ao enviar áudio para GCS: $e, salvando SOS localmente.');
-        return await _saveSosLocally(usuarioId, latitude, longitude, caminhoAudio, caminhoVideo);
-      }
+    // Sempre salvar localmente primeiro (modo offline-first)
+    final localSosRecord = await _saveSosLocally(
+      usuarioId,
+      latitude,
+      longitude,
+      caminhoAudio,
+      caminhoVideo,
+    );
+    if (localSosRecord == null) {
+      print('SosService: Falha ao salvar SOS localmente');
+      return null;
     }
 
-    if (caminhoVideo != null && !caminhoVideo.startsWith('http')) {
-      try {
-        final uploadedMedia = await ApiService.uploadFile(File(caminhoVideo));
-        if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
-          finalCaminhoVideo = uploadedMedia.caminho; // GCS URL
-          await File(caminhoVideo).delete(); // Delete local file after upload
-        } else {
-          print('Falha ao enviar vídeo para GCS, salvando SOS localmente.');
-          return await _saveSosLocally(usuarioId, latitude, longitude, caminhoAudio, caminhoVideo);
-        }
-      } catch (e) {
-        print('Erro ao enviar vídeo para GCS: $e, salvando SOS localmente.');
-        return await _saveSosLocally(usuarioId, latitude, longitude, caminhoAudio, caminhoVideo);
-      }
-    }
+    // Tentar sincronizar online em background se houver conectividade
+    _trySyncOnline(localSosRecord).catchError((error) {
+      print('SosService: Erro na sincronização online (background): $error');
+      // Se falhar, adicionar ao sistema de sincronização avançada
+      _addToAdvancedSync(localSosRecord);
+    });
 
-    final Map<String, dynamic> data = {
-      'usuario_id': usuarioId,
-      'latitude': latitude,
-      'longitude': longitude,
-      'status': 'pendente',
-      'createdAt': DateTime.now().toUtc().toIso8601String(),
-      'updatedAt': DateTime.now().toUtc().toIso8601String(),
-    };
-    if (finalCaminhoAudio != null) {
-      data['caminho_audio'] = finalCaminhoAudio;
-    }
-    if (finalCaminhoVideo != null) {
-      data['caminho_video'] = finalCaminhoVideo;
-    }
+    return localSosRecord;
+  }
 
+  // Método para adicionar SOS à fila de sincronização avançada
+  Future<void> _addToAdvancedSync(SosRecord sosRecord) async {
     try {
+      await _advancedSyncService.queueSosSync(sosRecord, 'create');
+      print(
+        'SosService: SOS ${sosRecord.id} adicionado à fila de sincronização avançada',
+      );
+    } catch (e) {
+      print('SosService: Erro ao adicionar SOS à fila de sincronização: $e');
+    }
+  }
+
+  // Método para tentar sincronizar online em background
+  Future<void> _trySyncOnline(SosRecord localSosRecord) async {
+    try {
+      // Verificar conectividade
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult == ConnectivityResult.none) {
+        print('SosService: Sem conectividade, pulando sincronização online');
+        return;
+      }
+
+      print(
+        'SosService: Tentando sincronizar SOS ${localSosRecord.id} online...',
+      );
+
+      String? finalCaminhoAudio = localSosRecord.caminho_audio;
+      String? finalCaminhoVideo = localSosRecord.caminho_video;
+
+      // Tentar fazer upload da mídia se for caminho local
+      if (localSosRecord.caminho_audio != null &&
+          !localSosRecord.caminho_audio!.startsWith('http')) {
+        try {
+          final uploadedMedia = await ApiService.uploadFile(
+            File(localSosRecord.caminho_audio!),
+          );
+          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
+            finalCaminhoAudio = uploadedMedia.caminho;
+            // Não deletar arquivo local ainda - será deletado após confirmação da sincronização
+          }
+        } catch (e) {
+          print('SosService: Erro ao fazer upload de áudio: $e');
+        }
+      }
+
+      if (localSosRecord.caminho_video != null &&
+          !localSosRecord.caminho_video!.startsWith('http')) {
+        try {
+          final uploadedMedia = await ApiService.uploadFile(
+            File(localSosRecord.caminho_video!),
+          );
+          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
+            finalCaminhoVideo = uploadedMedia.caminho;
+            // Não deletar arquivo local ainda
+          }
+        } catch (e) {
+          print('SosService: Erro ao fazer upload de vídeo: $e');
+        }
+      }
+
+      // Preparar dados para envio
+      final Map<String, dynamic> data = {
+        'usuario_id': localSosRecord.usuario_id,
+        'latitude': localSosRecord.latitude,
+        'longitude': localSosRecord.longitude,
+        'status': localSosRecord.status.toString().split('.').last,
+        'createdAt': localSosRecord.createdAt.toIso8601String(),
+        'updatedAt': localSosRecord.updatedAt.toIso8601String(),
+      };
+
+      if (finalCaminhoAudio != null) {
+        data['caminho_audio'] = finalCaminhoAudio;
+      }
+      if (finalCaminhoVideo != null) {
+        data['caminho_video'] = finalCaminhoVideo;
+      }
+      if (localSosRecord.encerrado_em != null) {
+        data['encerrado_em'] = localSosRecord.encerrado_em!.toIso8601String();
+      }
+
+      // Tentar enviar para API
       final response = await _apiService.post('/sos', data: data);
       if (response.statusCode == 201) {
-        return SosRecord.fromJson(response.data);
-      }
-      // If API call fails but no exception, fall through to local save
-    } catch (e) {
-      print('Erro ao criar SOS online: $e, salvando localmente.');
-      // Fallback to local storage
-    }
+        // Sucesso - marcar como sincronizado e limpar arquivos locais se foram enviados
+        await _localDatabase.markSosRecordAsSynced(localSosRecord.id);
+        print(
+          'SosService: SOS ${localSosRecord.id} sincronizado com sucesso online',
+        );
 
-    // If API call failed or returned non-201, save original (local) SOS to local DB
-    return await _saveSosLocally(usuarioId, latitude, longitude, caminhoAudio, caminhoVideo);
+        // Limpar arquivos locais após confirmação
+        if (localSosRecord.caminho_audio != null &&
+            finalCaminhoAudio != localSosRecord.caminho_audio) {
+          try {
+            await File(localSosRecord.caminho_audio!).delete();
+            print('SosService: Arquivo de áudio local deletado após upload');
+          } catch (e) {
+            print('SosService: Erro ao deletar arquivo de áudio local: $e');
+          }
+        }
+        if (localSosRecord.caminho_video != null &&
+            finalCaminhoVideo != localSosRecord.caminho_video) {
+          try {
+            await File(localSosRecord.caminho_video!).delete();
+            print('SosService: Arquivo de vídeo local deletado após upload');
+          } catch (e) {
+            print('SosService: Erro ao deletar arquivo de vídeo local: $e');
+          }
+        }
+      } else {
+        print(
+          'SosService: Falha ao sincronizar SOS ${localSosRecord.id} - Status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print(
+        'SosService: Erro na sincronização online do SOS ${localSosRecord.id}: $e',
+      );
+    }
   }
 
   // Helper method to save SOS locally
@@ -148,7 +233,8 @@ class SosService {
 
   // Adicionar esta função ao SosService
   Future<void> syncPendingSosRecords() async {
-    if (_isSyncing) { // Se já estiver sincronizando, sai
+    if (_isSyncing) {
+      // Se já estiver sincronizando, sai
       print('SosService: Sincronização já em andamento, pulando.');
       return;
     }
@@ -169,7 +255,10 @@ class SosService {
             'usuario_id': record.usuario_id,
             'latitude': record.latitude,
             'longitude': record.longitude,
-            'status': record.status.toString().split('.').last, // Convert enum to string
+            'status': record.status
+                .toString()
+                .split('.')
+                .last, // Convert enum to string
             'createdAt': record.createdAt.toIso8601String(),
             'updatedAt': record.updatedAt.toIso8601String(),
           };
@@ -188,14 +277,17 @@ class SosService {
             await _localDatabase.markSosRecordAsSynced(record.id);
             print('SosService: SOS ${record.id} sincronizado com sucesso.');
           } else {
-            print('SosService: Falha ao sincronizar SOS ${record.id}. Status: ${response.statusCode}');
+            print(
+              'SosService: Falha ao sincronizar SOS ${record.id}. Status: ${response.statusCode}',
+            );
           }
         } catch (e) {
           print('SosService: Erro ao sincronizar SOS ${record.id}: $e');
         }
       }
     } finally {
-      _isSyncing = false; // Garante que a flag seja resetada, mesmo em caso de erro
+      _isSyncing =
+          false; // Garante que a flag seja resetada, mesmo em caso de erro
     }
   }
 
@@ -215,9 +307,13 @@ class SosService {
         return false;
       }
 
-      print('updateSosMedia: Enviando para /sos/$sosId com dados: $data'); // LOG
+      print(
+        'updateSosMedia: Enviando para /sos/$sosId com dados: $data',
+      ); // LOG
       final response = await _apiService.put('/sos/$sosId', data: data);
-      print('updateSosMedia: Resposta do backend: ${response.statusCode}'); // LOG
+      print(
+        'updateSosMedia: Resposta do backend: ${response.statusCode}',
+      ); // LOG
       return response.statusCode == 200;
     } catch (e) {
       print('Erro ao atualizar SOS: $e');
