@@ -96,9 +96,94 @@ class MyApp extends StatelessWidget {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blueGrey,
-        brightness: Brightness.light,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF004A77), // Azul escuro institucional
+        onPrimary: Colors.white,
+        primaryContainer: Color(0xFFE3F2FD),
+        onPrimaryContainer: Color(0xFF004A77),
+        secondary: Color(0xFF2BBBAD), // Verde secundário
+        onSecondary: Colors.white,
+        secondaryContainer: Color(0xFFE0F2F1),
+        onSecondaryContainer: Color(0xFF00695C),
+        tertiary: Color(0xFF607D8B), // Cinza metálico
+        onTertiary: Colors.white,
+        tertiaryContainer: Color(0xFFECEFF1),
+        onTertiaryContainer: Color(0xFF37474F),
+        error: Color(0xFFE53935), // Vermelho de alerta
+        onError: Colors.white,
+        errorContainer: Color(0xFFFFEBEE),
+        onErrorContainer: Color(0xFFC62828),
+        surface: Color(0xFFF5F5F5), // Cinza claro para superfície
+        onSurface: Color(0xFF1E1E1E), // Cinza escuro para texto
+        surfaceContainerHighest: Color(0xFFE0E0E0),
+        onSurfaceVariant: Color(0xFF757575),
+        outline: Color(0xFFBDBDBD),
+        outlineVariant: Color(0xFFE0E0E0),
+        shadow: Color(0xFF000000),
+        scrim: Color(0xFF000000),
+        inverseSurface: Color(0xFF1E1E1E),
+        onInverseSurface: Color(0xFFF5F5F5),
+        inversePrimary: Color(0xFFBBDEFB),
+        surfaceTint: Color(0xFF004A77),
+      ),
+      fontFamily: 'Roboto',
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.25,
+        ),
+        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.15,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.15,
+        ),
+        titleSmall: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.5,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.25,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.4,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        labelMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+        labelSmall: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -108,9 +193,94 @@ class MyApp extends StatelessWidget {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blueGrey,
-        brightness: Brightness.dark,
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF64B5F6), // Azul claro para tema escuro
+        onPrimary: Color(0xFF0D47A1),
+        primaryContainer: Color(0xFF1565C0),
+        onPrimaryContainer: Color(0xFFBBDEFB),
+        secondary: Color(0xFF4DB6AC), // Verde secundário mais claro
+        onSecondary: Color(0xFF004D40),
+        secondaryContainer: Color(0xFF00695C),
+        onSecondaryContainer: Color(0xFFB2DFDB),
+        tertiary: Color(0xFF90A4AE), // Cinza metálico mais claro
+        onTertiary: Color(0xFF263238),
+        tertiaryContainer: Color(0xFF37474F),
+        onTertiaryContainer: Color(0xFFB0BEC5),
+        error: Color(0xFFEF5350), // Vermelho de alerta mais claro
+        onError: Color(0xFFB71C1C),
+        errorContainer: Color(0xFFD32F2F),
+        onErrorContainer: Color(0xFFFFCDD2),
+        surface: Color(0xFF1E1E1E), // Cinza escuro para superfície
+        onSurface: Color(0xFFF5F5F5), // Cinza claro para texto
+        surfaceContainerHighest: Color(0xFF2D2D2D),
+        onSurfaceVariant: Color(0xFFBDBDBD),
+        outline: Color(0xFF757575),
+        outlineVariant: Color(0xFF616161),
+        shadow: Color(0xFF000000),
+        scrim: Color(0xFF000000),
+        inverseSurface: Color(0xFFF5F5F5),
+        onInverseSurface: Color(0xFF1E1E1E),
+        inversePrimary: Color(0xFF004A77),
+        surfaceTint: Color(0xFF64B5F6),
+      ),
+      fontFamily: 'Roboto',
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.25,
+        ),
+        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.15,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.15,
+        ),
+        titleSmall: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.5,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.25,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.4,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        labelMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+        labelSmall: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }

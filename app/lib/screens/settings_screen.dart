@@ -12,6 +12,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const Color _violetaEscura = Color(0xFF311756);
+
   PackageInfo _packageInfo = PackageInfo(
     appName: 'Unknown',
     packageName: 'Unknown',
@@ -39,7 +41,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        backgroundColor: _violetaEscura,
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -50,25 +53,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
     final themeProvider = context.watch<ThemeProvider>();
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 8),
               // Seção: Aparência
               _buildSettingCard(
                 theme: theme,
+                colorScheme: colorScheme,
+                textScaler: textScaler,
                 icon: Icons.palette_rounded,
                 title: "Tema do aplicativo",
                 subtitle: "Escolha entre claro, escuro ou sistema",
                 child: Column(
                   children: [
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -76,24 +84,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             "Claro",
                             ThemeMode.light,
                             theme,
+                            colorScheme,
+                            textScaler,
                             themeProvider,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: _buildThemeOption(
                             "Escuro",
                             ThemeMode.dark,
                             theme,
+                            colorScheme,
+                            textScaler,
                             themeProvider,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: _buildThemeOption(
                             "Sistema",
                             ThemeMode.system,
                             theme,
+                            colorScheme,
+                            textScaler,
                             themeProvider,
                           ),
                         ),
@@ -102,11 +116,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Seção: Privacidade
               _buildSettingCard(
                 theme: theme,
+                colorScheme: colorScheme,
+                textScaler: textScaler,
                 icon: Icons.shield_rounded,
                 title: "Privacidade e Dados",
                 subtitle: "Gerencie permissões e privacidade",
@@ -116,25 +132,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 trailing: Icon(
                   Icons.chevron_right_rounded,
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant,
+                  size: 20,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Seção: Sobre
               _buildSettingCard(
                 theme: theme,
+                colorScheme: colorScheme,
+                textScaler: textScaler,
                 icon: Icons.info_rounded,
                 title: "Sobre o Smart Safe",
                 subtitle:
                     "Versão ${_packageInfo.version} (Build ${_packageInfo.buildNumber})",
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 10),
                   child: Text(
                     "Sistema de emergência inteligente para sua segurança.",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: textScaler.scale(14),
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ),
@@ -149,6 +169,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Widget para cartões de configuração (reutilizável)
   Widget _buildSettingCard({
     required ThemeData theme,
+    required ColorScheme colorScheme,
+    required TextScaler textScaler,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -161,49 +183,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant,
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
+          border: Border.all(color: colorScheme.outline, width: 1),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: _violetaEscura,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      icon,
-                      color: theme.colorScheme.primary,
-                      size: 18,
-                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           title,
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: textScaler.scale(15),
                             fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
+                            color: colorScheme.onSurface,
+                            letterSpacing: -0.2,
                           ),
                         ),
-                        const SizedBox(height: 1),
+                        const SizedBox(height: 2),
                         Text(
                           subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: textScaler.scale(13),
+                            color: colorScheme.onSurfaceVariant,
+                            letterSpacing: -0.1,
                           ),
                         ),
                       ],
@@ -225,6 +245,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String label,
     ThemeMode mode,
     ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
     ThemeProvider themeProvider,
   ) {
     final isSelected = themeProvider.themeMode == mode;
@@ -234,28 +256,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _showMessage('Tema alterado para $label');
       },
       child: Container(
-        height: 36,
+        height: 44,
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primary.withOpacity(0.1)
-              : theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
+              ? _violetaEscura
+              : colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.1),
+            color: isSelected ? _violetaEscura : colorScheme.outline,
             width: 1,
           ),
         ),
         child: Center(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(14),
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : colorScheme.onSurface,
+              letterSpacing: -0.1,
             ),
           ),
         ),

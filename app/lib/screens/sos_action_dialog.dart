@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 Future<String?> showSosActionDialog(BuildContext context) async {
   return showDialog<String>(
@@ -41,7 +42,7 @@ Future<String?> showSosActionDialog(BuildContext context) async {
             const SizedBox(height: 24),
             _SosActionButton(
               label: 'Áudio',
-              icon: Icons.mic,
+              icon: LucideIcons.mic,
               color: Colors.grey.shade300,
               textColor: Colors.black87,
               onTap: () => Navigator.pop(context, 'audio'),
@@ -49,7 +50,7 @@ Future<String?> showSosActionDialog(BuildContext context) async {
             const SizedBox(height: 12),
             _SosActionButton(
               label: 'Vídeo',
-              icon: Icons.videocam,
+              icon: LucideIcons.video,
               color: Colors.grey.shade300,
               textColor: Colors.black87,
               onTap: () => Navigator.pop(context, 'video'),
@@ -57,7 +58,7 @@ Future<String?> showSosActionDialog(BuildContext context) async {
             const SizedBox(height: 12),
             _SosActionButton(
               label: 'Localização',
-              icon: Icons.location_on,
+              icon: LucideIcons.mapPin,
               color: Colors.grey.shade300,
               textColor: Colors.black87,
               onTap: () => Navigator.pop(context, 'location'),

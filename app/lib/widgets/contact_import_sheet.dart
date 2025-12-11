@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import '../controllers/contact_import_controller.dart';
+import '../utils/app_message.dart';
 
 /// Widget para importação de contatos do dispositivo
 class ContactImportSheet extends StatefulWidget {
@@ -301,29 +302,19 @@ class _ContactImportSheetState extends State<ContactImportSheet> {
         ? 'Importados ${result.importedCount} contatos com ${result.errorCount} erros'
         : 'Importados ${result.importedCount} contatos com sucesso';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(24),
-      ),
+    final hasPartialErrors = result.errorCount > 0;
+
+    AppMessage.show(
+      context,
+      message: message,
+      type: hasPartialErrors ? AppMessageType.warning : AppMessageType.success,
     );
   }
 
   void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(24),
-      ),
+    AppMessage.error(
+      context,
+      message: message,
     );
   }
 }

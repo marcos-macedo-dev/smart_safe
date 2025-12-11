@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../models/sos_record.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
@@ -107,7 +108,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
     }
     if (_hasVideoError) {
       return const Center(
-        child: Text('Erro ao carregar vídeo.', style: TextStyle(color: Colors.red)),
+        child: Text(
+          'Erro ao carregar vídeo.',
+          style: TextStyle(color: Colors.red),
+        ),
       );
     }
     if (_videoController == null || !_isVideoInitialized) {
@@ -122,7 +126,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Vídeo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Vídeo',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             AspectRatio(
               aspectRatio: _videoController!.value.aspectRatio,
@@ -130,7 +137,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
                 alignment: Alignment.bottomCenter,
                 children: [
                   VideoPlayer(_videoController!),
-                  VideoProgressIndicator(_videoController!, allowScrubbing: true),
+                  VideoProgressIndicator(
+                    _videoController!,
+                    allowScrubbing: true,
+                  ),
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: () {
@@ -146,7 +156,7 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
                   if (!_videoController!.value.isPlaying)
                     const Center(
                       child: Icon(
-                        Icons.play_arrow,
+                        LucideIcons.play,
                         size: 64,
                         color: Colors.white70,
                       ),
@@ -159,7 +169,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
                       builder: (context, VideoPlayerValue value, child) {
                         return Text(
                           '${_formatDuration(value.position)} / ${_formatDuration(value.duration)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         );
                       },
                     ),
@@ -173,7 +186,9 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
               children: [
                 IconButton(
                   icon: Icon(
-                    _videoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                    _videoController!.value.isPlaying
+                        ? LucideIcons.pause
+                        : LucideIcons.play,
                   ),
                   onPressed: () {
                     setState(() {
@@ -197,7 +212,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
     }
     if (_hasAudioError) {
       return const Center(
-        child: Text('Erro ao carregar áudio.', style: TextStyle(color: Colors.red)),
+        child: Text(
+          'Erro ao carregar áudio.',
+          style: TextStyle(color: Colors.red),
+        ),
       );
     }
     if (_audioPlayer == null || !_isAudioInitialized) {
@@ -212,7 +230,10 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Áudio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Áudio',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -222,7 +243,9 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
                     final playerState = snapshot.data;
                     final playing = playerState?.playing ?? false;
                     return IconButton(
-                      icon: Icon(playing ? Icons.pause_circle : Icons.play_circle),
+                      icon: Icon(
+                        playing ? LucideIcons.pause : LucideIcons.play,
+                      ),
                       iconSize: 48,
                       onPressed: () {
                         if (playing) {
@@ -249,16 +272,26 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
                             ),
                             max: duration.inMilliseconds.toDouble(),
                             onChanged: (value) {
-                              _audioPlayer!.seek(Duration(milliseconds: value.toInt()));
+                              _audioPlayer!.seek(
+                                Duration(milliseconds: value.toInt()),
+                              );
                             },
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(_formatDuration(position), style: const TextStyle(fontSize: 12)),
-                                Text(_formatDuration(duration), style: const TextStyle(fontSize: 12)),
+                                Text(
+                                  _formatDuration(position),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  _formatDuration(duration),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
                               ],
                             ),
                           ),
@@ -299,7 +332,11 @@ class _SosMediaScreenState extends State<SosMediaScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
+                  Icon(
+                    LucideIcons.folderOpen,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Nenhuma mídia disponível para este SOS.',

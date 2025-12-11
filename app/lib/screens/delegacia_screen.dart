@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert'; // Import for jsonEncode/jsonDecode
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../models/delegacia.dart';
 import '../services/api_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -16,6 +17,9 @@ class DelegaciaScreen extends StatefulWidget {
 }
 
 class _DelegaciaScreenState extends State<DelegaciaScreen> {
+  static const Color _violetaEscura = Color(0xFF311756);
+  static const Color _violetaMedia = Color(0xFF401F56);
+
   List<Delegacia> _delegacias = [];
   bool _isLoading = true;
   late GoogleMapController _mapController;
@@ -230,59 +234,54 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     });
   }
 
-  Widget _buildSearchField(ThemeData theme) {
+  Widget _buildSearchField(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline, width: 1),
       ),
       child: TextField(
         controller: searchController,
         onChanged: _filterDelegacias,
-        style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
+        style: TextStyle(
+          fontSize: textScaler.scale(15),
+          color: colorScheme.onSurface,
+          letterSpacing: -0.2,
+        ),
         decoration: InputDecoration(
           hintText: 'Buscar delegacia...',
           hintStyle: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-            fontSize: 14,
+            color: colorScheme.onSurfaceVariant,
+            fontSize: textScaler.scale(15),
+            letterSpacing: -0.2,
           ),
           prefixIcon: Icon(
-            Icons.search,
-            color: theme.colorScheme.primary.withOpacity(0.7),
-            size: 18,
+            LucideIcons.search,
+            color: colorScheme.onSurfaceVariant,
+            size: 20,
           ),
-          filled: true,
-          fillColor: theme.colorScheme.primary.withOpacity(0.05),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-          ),
+          border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 12,
+            horizontal: 16,
+            vertical: 14,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDelegaciaCard(Delegacia delegacia, ThemeData theme) {
+  Widget _buildDelegaciaCard(
+    Delegacia delegacia,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     final distance =
         _userLocation != null &&
             delegacia.latitude != null &&
@@ -302,38 +301,28 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
       if (distance < 10) {
         distanceColor = Colors.green;
         proximityLabel = 'Próximo';
-        proximityIcon = Icons.near_me;
+        proximityIcon = LucideIcons.navigation;
       } else if (distance <= 50) {
         distanceColor = Colors.orange;
         proximityLabel = 'Médio';
-        proximityIcon = Icons.location_on;
+        proximityIcon = LucideIcons.mapPin;
       } else {
         distanceColor = Colors.red;
         proximityLabel = 'Longe';
-        proximityIcon = Icons.location_off;
+        proximityIcon = LucideIcons.mapPinOff;
       }
     } else {
-      distanceColor = theme.colorScheme.onSurface.withOpacity(0.5);
+      distanceColor = colorScheme.onSurfaceVariant;
       proximityLabel = 'Desconhecido';
-      proximityIcon = Icons.location_disabled;
+      proximityIcon = LucideIcons.mapPinX;
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: colorScheme.outline, width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -350,27 +339,27 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             }
           },
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
                 // Ícone principal
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: _violetaEscura,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Icon(
-                      Icons.local_police,
-                      size: 20,
-                      color: theme.colorScheme.primary,
+                      LucideIcons.shield,
+                      size: 22,
+                      color: Colors.white,
                     ),
                   ),
                 ),
 
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
 
                 // Conteúdo principal
                 Expanded(
@@ -379,71 +368,92 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                     children: [
                       Text(
                         delegacia.nome,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: textScaler.scale(15),
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
+                          color: colorScheme.onSurface,
+                          letterSpacing: -0.2,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
 
                       Text(
                         delegacia.endereco ?? 'Endereço não disponível',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: textScaler.scale(13),
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: -0.1,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
 
                       // Status de proximidade
-                      Row(
-                        children: [
-                          Icon(proximityIcon, size: 12, color: distanceColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            proximityLabel,
-                            style: TextStyle(
-                              color: distanceColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: distanceColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: distanceColor.withOpacity(0.3),
+                            width: 1,
                           ),
-                          if (distance != null) ...[
-                            const SizedBox(width: 6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(proximityIcon, size: 12, color: distanceColor),
+                            const SizedBox(width: 4),
                             Text(
-                              "${distance.toStringAsFixed(1)} km",
+                              proximityLabel,
                               style: TextStyle(
                                 color: distanceColor,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                fontSize: textScaler.scale(11),
+                                letterSpacing: -0.1,
                               ),
                             ),
+                            if (distance != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                "${distance.toStringAsFixed(1)} km",
+                                style: TextStyle(
+                                  color: distanceColor,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: textScaler.scale(11),
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
 
+                const SizedBox(width: 8),
+
                 // Botão de direções
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: _violetaEscura,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: () {
                         final url = Uri.encodeFull(
                           'https://www.google.com/maps/dir/?api=1&destination=${delegacia.latitude},${delegacia.longitude}',
@@ -455,9 +465,9 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                       },
                       child: Center(
                         child: Icon(
-                          Icons.directions,
-                          color: theme.colorScheme.primary,
-                          size: 18,
+                          LucideIcons.navigation,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
@@ -471,7 +481,11 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     );
   }
 
-  Widget _buildDelegaciaList(ThemeData theme) {
+  Widget _buildDelegaciaList(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return SafeArea(
       child: DraggableScrollableSheet(
         initialChildSize: 0.25,
@@ -479,9 +493,15 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
         maxChildSize: 0.5,
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.04),
+            color: colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
           child: ListView(
             controller: controller,
@@ -493,35 +513,36 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withOpacity(0.3),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
 
               // Campo de busca
-              _buildSearchField(theme),
+              _buildSearchField(theme, colorScheme, textScaler),
 
               // Lista de delegacias
               if (filteredDelegacias.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.search_off,
-                          size: 28,
-                          color: theme.colorScheme.onSurface.withAlpha(128),
+                          LucideIcons.searchX,
+                          size: 40,
+                          color: colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 12),
                         Text(
                           'Nenhuma delegacia encontrada',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: theme.colorScheme.onSurface.withAlpha(128),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: textScaler.scale(15),
+                            color: colorScheme.onSurfaceVariant,
+                            letterSpacing: -0.2,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -531,7 +552,12 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                 )
               else
                 ...filteredDelegacias.map(
-                  (delegacia) => _buildDelegaciaCard(delegacia, theme),
+                  (delegacia) => _buildDelegaciaCard(
+                    delegacia,
+                    theme,
+                    colorScheme,
+                    textScaler,
+                  ),
                 ),
             ],
           ),
@@ -540,7 +566,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     );
   }
 
-  Widget _buildFloatingButtons(ThemeData theme) {
+  Widget _buildFloatingButtons(ThemeData theme, ColorScheme colorScheme) {
     return Positioned(
       top: 16,
       right: 16,
@@ -548,19 +574,9 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: _violetaEscura,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: _violetaEscura, width: 1),
             ),
             child: Material(
               color: Colors.transparent,
@@ -568,13 +584,13 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                 borderRadius: BorderRadius.circular(12),
                 onTap: _toggleMapType,
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   child: Center(
                     child: Icon(
-                      Icons.layers,
-                      color: theme.colorScheme.primary,
-                      size: 18,
+                      LucideIcons.layers,
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -582,23 +598,13 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+              color: _violetaEscura,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: _violetaEscura, width: 1),
             ),
             child: Material(
               color: Colors.transparent,
@@ -606,13 +612,13 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                 borderRadius: BorderRadius.circular(12),
                 onTap: _centerMap,
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   child: Center(
                     child: Icon(
-                      Icons.my_location,
-                      color: theme.colorScheme.primary,
-                      size: 18,
+                      LucideIcons.locate,
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -627,14 +633,30 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.primary.withAlpha(30),
+      backgroundColor: colorScheme.surface,
       body: _isLoading
           ? Center(
-              child: CircularProgressIndicator(
-                color: theme.colorScheme.primary,
-                strokeWidth: 2,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: _violetaEscura,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Carregando...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: textScaler.scale(15),
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
               ),
             )
           : Stack(
@@ -651,8 +673,8 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                   myLocationEnabled: true,
                   minMaxZoomPreference: const MinMaxZoomPreference(5, 18),
                 ),
-                _buildDelegaciaList(theme),
-                _buildFloatingButtons(theme),
+                _buildDelegaciaList(theme, colorScheme, textScaler),
+                _buildFloatingButtons(theme, colorScheme),
               ],
             ),
     );

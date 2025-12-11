@@ -28,6 +28,11 @@ module.exports = {
       telefone: {
         type: Sequelize.STRING
       },
+      ativa: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
@@ -41,7 +46,7 @@ module.exports = {
     });
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface, _Sequelize) {
     await queryInterface.dropTable('Delegacias');
   }
 };

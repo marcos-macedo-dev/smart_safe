@@ -33,7 +33,7 @@
             }
         }
         .header {
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
             color: white;
             padding: 24px 20px;
             text-align: center;
@@ -56,49 +56,56 @@
         }
         .button {
             display: inline-block;
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             color: white;
             text-decoration: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
             font-weight: 500;
             margin: 20px 0;
             font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
         }
         .button:hover {
-            background-color: #1d4ed8;
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3);
         }
         .button-container {
             text-align: center;
             margin: 24px 0;
         }
         .footer {
-            background-color: #f4f4f5;
+            background-color: #1e3a8a;
             padding: 20px 24px;
             text-align: center;
             font-size: 13px;
-            color: #71717a;
-            border-top: 1px solid #e4e4e7;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
         }
         @media (prefers-color-scheme: dark) {
             .footer {
-                background-color: #18181b;
-                color: #a1a1aa;
-                border-top: 1px solid #27272a;
+                background-color: #0f172a;
+                color: #94a3b8;
+                border-top: 1px solid #1e293b;
             }
         }
         .footer p {
             margin: 0;
         }
         .details {
-            background-color: #f4f4f5;
-            padding: 16px;
+            background-color: #f8fafc;
+            padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
+            border-left: 4px solid #2563eb;
         }
         @media (prefers-color-scheme: dark) {
             .details {
-                background-color: #27272a;
+                background-color: #0f172a;
             }
         }
         .details p {
@@ -107,6 +114,13 @@
         }
         .regards {
             margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+        @media (prefers-color-scheme: dark) {
+            .regards {
+                border-top: 1px solid #334155;
+            }
         }
     </style>
 </head>
@@ -117,15 +131,15 @@
         </div>
         <div class="content">
             <p>Olá {{name}},</p>
-            
+
             <p>{{message}}</p>
-            
+
             {{#if button_text}}
             <div class="button-container">
                 <a href="{{button_url}}" class="button">{{button_text}}</a>
             </div>
             {{/if}}
-            
+
             {{#if details}}
             <div class="details">
                 <p><strong>Detalhes:</strong></p>
@@ -134,7 +148,7 @@
                 {{/each}}
             </div>
             {{/if}}
-            
+
             <p class="regards">Atenciosamente,<br>Equipe Smart Safe</p>
         </div>
         <div class="footer">

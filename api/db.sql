@@ -73,12 +73,16 @@ CREATE TABLE IF NOT EXISTS `sos` (
   `caminho_video` TEXT NULL,
   `latitude` DECIMAL(10, 8) NULL,
   `longitude` DECIMAL(11, 8) NULL,
+  `delegacia_id` INT NULL,
+  `autoridade_id` INT NULL,
   `status` ENUM('pendente', 'ativo', 'aguardando_autoridade', 'fechado', 'cancelado') NOT NULL DEFAULT 'pendente',
   `encerrado_em` DATETIME NULL,
   `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`delegacia_id`) REFERENCES `Delegacias`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`autoridade_id`) REFERENCES `autoridades`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- Tabela de Mídia (depende de `sos`)

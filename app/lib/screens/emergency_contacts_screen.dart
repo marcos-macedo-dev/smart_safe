@@ -16,6 +16,10 @@ class EmergencyContactsScreen extends StatefulWidget {
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     with SingleTickerProviderStateMixin {
+  // Paleta institucional
+  static const Color _violetaEscura = Color(0xFF311756);
+  static const Color _violetaMedia = Color(0xFF401F56);
+
   late final EmergencyContactService _contactService;
   List<EmergencyContact> _filteredContacts = [];
   List<String> _availableRelationships = [];
@@ -164,7 +168,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        backgroundColor: _violetaEscura,
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(24),
@@ -175,11 +180,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
@@ -188,11 +195,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withAlpha(15),
+                color: _violetaEscura,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withAlpha(30),
-                ),
+                border: Border.all(color: _violetaEscura),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -200,9 +205,10 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                   Text(
                     _selectedFilter!,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.primary,
+                      fontSize: textScaler.scale(12),
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
+                      letterSpacing: -0.1,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -211,7 +217,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                     child: Icon(
                       Icons.close_rounded,
                       size: 14,
-                      color: theme.colorScheme.primary,
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -229,8 +235,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
             icon: Icon(
               Icons.filter_list_rounded,
               color: _selectedFilter != null
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withOpacity(0.7),
+                  ? _violetaEscura
+                  : colorScheme.onSurface.withOpacity(0.7),
               size: 20,
             ),
           ),
@@ -239,12 +245,14 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: _buildBody(theme),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: _buildBody(theme, colorScheme, textScaler),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showImportContacts,
+        backgroundColor: _violetaEscura,
+        foregroundColor: Colors.white,
         child: const Icon(Icons.contacts_rounded),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -255,38 +263,43 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     return _availableRelationships;
   }
 
-  Widget _buildBody(ThemeData theme) {
+  Widget _buildBody(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     if (_isLoading) {
-      return _buildLoadingState(theme);
+      return _buildLoadingState(theme, colorScheme, textScaler);
     }
 
     if (_error != null) {
-      return _buildErrorState(theme);
+      return _buildErrorState(theme, colorScheme, textScaler);
     }
 
     if (_filteredContacts.isEmpty) {
-      return _buildEmptyState(theme);
+      return _buildEmptyState(theme, colorScheme, textScaler);
     }
 
-    return _buildContactsList(theme);
+    return _buildContactsList(theme, colorScheme, textScaler);
   }
 
-  Widget _buildLoadingState(ThemeData theme) {
+  Widget _buildLoadingState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: theme.colorScheme.primary,
-            strokeWidth: 2,
-          ),
+          CircularProgressIndicator(color: _violetaEscura, strokeWidth: 2),
           const SizedBox(height: 16),
           Text(
             'Carregando...',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(15),
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -294,7 +307,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     );
   }
 
-  Widget _buildErrorState(ThemeData theme) {
+  Widget _buildErrorState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -304,14 +321,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
             Icon(
               Icons.error_outline,
               size: 80,
-              color: theme.colorScheme.error.withOpacity(0.6),
+              color: colorScheme.error.withOpacity(0.6),
             ),
             const SizedBox(height: 20),
             Text(
               'Erro ao carregar contatos',
               style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: textScaler.scale(20),
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.error,
+                color: colorScheme.error,
+                letterSpacing: -0.3,
               ),
               textAlign: TextAlign.center,
             ),
@@ -319,25 +338,36 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
             Text(
               _error!,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontSize: textScaler.scale(15),
+                color: colorScheme.onSurfaceVariant,
+                letterSpacing: -0.2,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 44,
+              height: 48,
               child: OutlinedButton.icon(
                 onPressed: _loadContacts,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Tentar Novamente'),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
-                    width: 1,
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: _violetaEscura,
+                ),
+                label: Text(
+                  'Tentar Novamente',
+                  style: TextStyle(
+                    fontSize: textScaler.scale(15),
+                    fontWeight: FontWeight.w600,
+                    color: _violetaEscura,
+                    letterSpacing: -0.2,
                   ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: _violetaEscura, width: 1),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
@@ -348,7 +378,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     final hasFilter = _selectedFilter != null;
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -362,15 +396,19 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withAlpha(15),
+                  color: _violetaEscura.withOpacity(0.15),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _violetaEscura.withOpacity(0.5),
+                    width: 1,
+                  ),
                 ),
                 child: Icon(
                   hasFilter
                       ? Icons.filter_list_rounded
                       : Icons.contact_page_rounded,
                   size: 40,
-                  color: theme.colorScheme.primary.withOpacity(0.6),
+                  color: _violetaEscura,
                 ),
               ),
               const SizedBox(height: 20),
@@ -378,10 +416,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                 hasFilter
                     ? 'Nenhum contato encontrado'
                     : 'Nenhum contato de emergência',
-                style: TextStyle(
-                  fontSize: 18,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: textScaler.scale(20),
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
+                  color: colorScheme.onSurface,
+                  letterSpacing: -0.3,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -390,17 +429,17 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                 hasFilter
                     ? 'Não há contatos com o filtro selecionado.'
                     : 'Importe contatos do seu celular para serem notificados em emergências.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  fontWeight: FontWeight.w400,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: textScaler.scale(15),
+                  color: colorScheme.onSurfaceVariant,
+                  letterSpacing: -0.2,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                height: 48,
                 child: OutlinedButton.icon(
                   onPressed: hasFilter
                       ? () => _setFilter(null)
@@ -409,24 +448,22 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
                     hasFilter
                         ? Icons.filter_list_off_rounded
                         : Icons.contacts_rounded,
-                    size: 16,
-                    color: theme.colorScheme.primary,
+                    size: 18,
+                    color: _violetaEscura,
                   ),
                   label: Text(
                     hasFilter ? 'Remover filtro' : 'Importar Contatos',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: textScaler.scale(15),
                       fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
+                      color: _violetaEscura,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      width: 1,
-                    ),
+                    side: const BorderSide(color: _violetaEscura, width: 1),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -438,21 +475,29 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     );
   }
 
-  Widget _buildContactsList(ThemeData theme) {
+  Widget _buildContactsList(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: RefreshIndicator(
         onRefresh: _loadContacts,
-        color: theme.colorScheme.primary,
+        color: _violetaEscura,
         child: ListView.separated(
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: _filteredContacts.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 6),
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final contact = _filteredContacts[index];
             return _ContactCard(
               contact: contact,
               onDelete: () => _deleteContact(contact),
+              colorScheme: colorScheme,
+              textScaler: textScaler,
+              accentColor: _violetaEscura,
+              accentTextColor: Colors.white,
             );
           },
         ),
@@ -465,8 +510,19 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
 class _ContactCard extends StatelessWidget {
   final EmergencyContact contact;
   final VoidCallback onDelete;
+  final ColorScheme colorScheme;
+  final TextScaler textScaler;
+  final Color accentColor;
+  final Color accentTextColor;
 
-  const _ContactCard({required this.contact, required this.onDelete});
+  const _ContactCard({
+    required this.contact,
+    required this.onDelete,
+    required this.colorScheme,
+    required this.textScaler,
+    required this.accentColor,
+    required this.accentTextColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -481,8 +537,8 @@ class _ContactCard extends StatelessWidget {
         children: [
           SlidableAction(
             onPressed: (_) => onDelete(),
-            backgroundColor: theme.colorScheme.error.withOpacity(0.1),
-            foregroundColor: theme.colorScheme.error,
+            backgroundColor: colorScheme.error.withOpacity(0.1),
+            foregroundColor: colorScheme.error,
             icon: Icons.delete_rounded,
             label: 'Remover',
           ),
@@ -491,71 +547,70 @@ class _ContactCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 0),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant,
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
+          border: Border.all(color: colorScheme.outline, width: 1),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.all(16),
           leading: CircleAvatar(
             radius: 24,
-            backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+            backgroundColor: accentColor.withOpacity(0.15),
             child: Text(
               initials,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: textScaler.scale(14),
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
+                color: accentColor,
+                letterSpacing: -0.1,
               ),
             ),
           ),
           title: Text(
             contact.nome,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontSize: textScaler.scale(16),
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+              letterSpacing: -0.2,
             ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(
-                    Icons.phone_rounded,
-                    size: 14,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                  ),
+                  Icon(Icons.phone_rounded, size: 16, color: accentColor),
                   const SizedBox(width: 6),
                   Text(
                     contact.telefone,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurface.withOpacity(0.8),
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: textScaler.scale(14),
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ],
               ),
               if (contact.parentesco != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     contact.parentesco!,
                     style: TextStyle(
-                      fontSize: 10,
-                      color: theme.colorScheme.primary,
+                      fontSize: textScaler.scale(11),
+                      color: accentTextColor,
                       fontWeight: FontWeight.w600,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ),
@@ -564,8 +619,8 @@ class _ContactCard extends StatelessWidget {
           ),
           trailing: Icon(
             Icons.drag_handle_rounded,
-            color: theme.colorScheme.onSurface.withOpacity(0.3),
-            size: 16,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+            size: 18,
           ),
         ),
       ),

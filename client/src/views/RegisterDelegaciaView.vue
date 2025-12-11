@@ -105,7 +105,7 @@
         <!-- Dados do Administrador -->
         <div>
           <label for="nome_admin" class="form-label">
-            Nome do Administrador <span class="text-red-500">*</span>
+            Nome do Responsável <span class="text-red-500">*</span>
           </label>
           <input
             id="nome_admin"
@@ -119,7 +119,7 @@
 
         <div>
           <label for="email_admin" class="form-label">
-            Email do Administrador <span class="text-red-500">*</span>
+            Email do Responsável <span class="text-red-500">*</span>
           </label>
           <input
             id="email_admin"
@@ -252,7 +252,7 @@
       <div class="mt-5 text-center text-gray-400 text-xs">
         <p>
           Após o envio, a solicitação será revisada pela equipe.<br />
-          Se aprovada, um convite será enviado ao administrador.
+          Se aprovada, um convite será enviado à unidade.
         </p>
       </div>
     </div>

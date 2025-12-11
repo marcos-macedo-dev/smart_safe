@@ -1,5 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:developer' as developer;
+
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../models/sos_record.dart';
 
 class LocalDatabase {
@@ -20,7 +23,10 @@ class LocalDatabase {
     // print('LocalDatabase: Deleting existing database for fresh start.');
     // await deleteDatabase(path);
 
-    print('LocalDatabase: Opening database at $path with version 2.');
+    developer.log(
+      'Opening database at $path with version 2.',
+      name: 'LocalDatabase',
+    );
     return await openDatabase(
       path,
       version: 2,
@@ -30,7 +36,10 @@ class LocalDatabase {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    print('LocalDatabase: onCreate triggered. Version: $version');
+    developer.log(
+      'onCreate triggered. Version: $version',
+      name: 'LocalDatabase',
+    );
     await db.execute('''
       CREATE TABLE $_sosTableName(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,9 +58,15 @@ class LocalDatabase {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    print('LocalDatabase: onUpgrade from $oldVersion to $newVersion');
+    developer.log(
+      'onUpgrade from $oldVersion to $newVersion',
+      name: 'LocalDatabase',
+    );
     if (oldVersion < 2) {
-      print('LocalDatabase: Adding createdAt and updatedAt columns.');
+      developer.log(
+        'Adding createdAt and updatedAt columns.',
+        name: 'LocalDatabase',
+      );
       await db.execute('ALTER TABLE $_sosTableName ADD COLUMN createdAt TEXT;');
       await db.execute('ALTER TABLE $_sosTableName ADD COLUMN updatedAt TEXT;');
     }

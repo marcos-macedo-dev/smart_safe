@@ -201,7 +201,7 @@ async function approveRequest() {
   try {
     processing.value = true
     await approveDelegaciaRegistration({ token })
-    toast.success('Registro aprovado com sucesso! O convite foi enviado para o administrador.')
+    toast.success('Registro aprovado com sucesso! O convite foi enviado para a unidade.')
     router.push('/login')
   } catch (error) {
     toast.error(error.message || 'Erro ao aprovar registro')

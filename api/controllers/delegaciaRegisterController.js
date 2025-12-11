@@ -114,7 +114,7 @@ exports.registerDelegacia = async (req, res) => {
     const administrador = await Autoridade.create({
       nome: administradorData.nome,
       email: administradorData.email,
-      cargo: 'Admin',
+      cargo: 'Unidade',
       delegacia_id: delegacia.id,
       // Marcar como pendente de aprovação
       senha: null,
@@ -229,12 +229,12 @@ exports.approveDelegaciaRegistration = async (req, res) => {
       });
 
       res.status(200).json({
-        message: 'Registro aprovado com sucesso! O convite foi enviado para o administrador.'
+        message: 'Registro aprovado com sucesso! O convite foi enviado para a unidade.'
       });
     } catch (emailError) {
       console.error('Erro ao enviar email de convite:', emailError);
       return res.status(500).json({
-        error: 'Erro ao enviar convite para o administrador. Entre em contato com o suporte.'
+        error: 'Erro ao enviar convite para a unidade. Entre em contato com o suporte.'
       });
     }
   } catch (error) {

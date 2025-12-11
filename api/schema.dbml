@@ -1,0 +1,147 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.org/docs
+
+Project smart_safe {
+  database_type: 'MySQL'
+  Note: 'Schema da API Smart Safe'
+}
+
+Table usuarios {
+  id bigint [pk, increment, not null]
+  nome_completo varchar(150) [not null]
+  email varchar(150) [unique, not null]
+  senha varchar(255) [not null]
+  telefone varchar(20) [unique, not null]
+  cidade varchar(100) [not null]
+  estado char(2) [not null]
+  endereco varchar(255)
+  genero ENUM('Feminino', 'Nao_Binario', 'Masculino', 'Outro') [not null, default: 'Outro']
+  cor ENUM('Branca', 'Preta', 'Parda', 'Amarela', 'Indigena', 'Outra') [not null, default: 'outra']
+  documento_identificacao varchar(50)
+  consentimento boolean [not null, default: false]
+  resetPasswordToken varchar
+  resetPasswordExpires datetime
+  createdAt datetime [not null]
+  updatedAt datetime [not null]
+}
+
+Table Delegacias {
+  id int [pk, increment, not null]
+  nome varchar [not null]
+  endereco varchar [not null]
+  latitude double [not null]
+  longitude double [not null]
+  telefone varchar
+  ativa boolean [not null, default: true]
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table autoridades {
+  id int [pk, increment, not null]
+  nome varchar [not null]
+  email varchar [unique, not null]
+  senha varchar
+  cargo ENUM('Agente', 'Unidade') [not null, default: 'Agente']
+  ativo boolean [not null, default: true]
+  delegacia_id int [not null]
+  inviteToken varchar [unique]
+  inviteExpires datetime
+  invitedBy bigint
+  acceptedAt datetime
+  resetPasswordToken varchar
+  resetPasswordExpires datetime
+  pendingApproval boolean [not null, default: false]
+  approvalToken varchar [unique]
+  approvalExpires datetime
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table delegacia_coberturas {
+  id int [pk, increment, not null]
+  delegacia_id int [not null]
+  tipo ENUM('municipio', 'estado', 'raio') [not null]
+  valor varchar [not null]
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table sos {
+  id bigint [pk, increment, not null]
+  usuario_id bigint [not null]
+  caminho_audio text
+  caminho_video text
+  latitude decimal(10, 8)
+  longitude decimal(11, 8)
+  delegacia_id int
+  autoridade_id int
+  status ENUM('pendente', 'ativo', 'aguardando_autoridade', 'fechado', 'cancelado') [not null, default: 'pendente']
+  encerrado_em datetime
+  createdAt datetime [not null]
+  updatedAt datetime [not null]
+}
+
+Table midia {
+  id bigint [pk, increment, not null]
+  sos_id bigint
+  tipo ENUM('foto', 'video', 'audio') [not null]
+  caminho text [not null]
+  createdAt datetime [not null]
+  updatedAt datetime [not null]
+}
+
+Table localizacoes_incidente {
+  id bigint [pk, increment, not null]
+  sos_id bigint [not null]
+  latitude decimal(10, 8) [not null]
+  longitude decimal(11, 8) [not null]
+  precisao decimal(5, 2)
+  nivel_bateria decimal(5, 2)
+  registrado_em datetime [not null]
+}
+
+Table rastreamento_apuros {
+  id int [pk, increment, not null]
+  sos_id bigint [not null]
+  latitude decimal(10, 8) [not null]
+  longitude decimal(11, 8) [not null]
+  precisao decimal(5, 2)
+  nivel_bateria decimal(5, 2)
+  registrado_em datetime
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table contatos_emergencia {
+  id int [pk, increment, not null]
+  usuario_id bigint
+  nome varchar
+  telefone varchar
+  parentesco varchar
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table registro_auditoria {
+  id bigint [pk, increment, not null]
+  ator_id bigint [not null]
+  acao varchar(50) [not null]
+  tipo_alvo varchar(50) [not null]
+  id_alvo bigint [not null]
+  detalhes json
+  createdAt datetime [not null]
+  updatedAt datetime [not null]
+}
+
+// --- Relationships ---
+
+Ref: autoridades.delegacia_id > Delegacias.id
+Ref: autoridades.invitedBy > autoridades.id
+Ref: delegacia_coberturas.delegacia_id > Delegacias.id
+Ref: sos.usuario_id > usuarios.id
+Ref: sos.delegacia_id > Delegacias.id
+Ref: midia.sos_id > sos.id
+Ref: localizacoes_incidente.sos_id > sos.id
+Ref: rastreamento_apuros.sos_id > sos.id
+Ref: contatos_emergencia.usuario_id > usuarios.id

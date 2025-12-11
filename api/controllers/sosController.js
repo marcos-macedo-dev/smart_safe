@@ -1,6 +1,46 @@
-const { Sos, User, Delegacia } = require('../models');
+const { Sos, User, Delegacia, Autoridade } = require('../models');
+const { Op } = require('sequelize');
 const logAudit = require('../utils/auditLogger');
 const { findDelegaciaForLocation } = require('../utils/roteamento');
+
+// Função para encontrar o agente mais próximo ou com menor carga com base na localização
+async function findNearestAgente(delegaciaId, sosLatitude, sosLongitude) {
+  // Encontrar todos os agentes ativos (cargo 'Agente') na delegacia
+  const agentes = await Autoridade.findAll({
+    where: {
+      delegacia_id: delegaciaId,
+      cargo: 'Agente',
+      ativo: true
+    }
+  });
+
+  if (agentes.length === 0) {
+    return null;
+  }
+
+  // Encontrar o agente com menos chamados ativos para distribuição equilibrada de carga
+  let agenteComMenorCarga = agentes[0];
+  let menorCarga = Infinity;
+
+  for (const agente of agentes) {
+    // Contar chamados ativos atualmente atribuídos a este agente
+    const cargaAtual = await Sos.count({
+      where: {
+        autoridade_id: agente.id,
+        status: {
+          [Op.in]: ['ativo', 'aguardando_autoridade'] // Chamados ativos
+        }
+      }
+    });
+
+    if (cargaAtual < menorCarga) {
+      menorCarga = cargaAtual;
+      agenteComMenorCarga = agente;
+    }
+  }
+
+  return agenteComMenorCarga;
+}
 
 // Criar um novo registro de SOS
 exports.createSos = async (req, res) => {
@@ -32,6 +72,32 @@ exports.createSos = async (req, res) => {
     // Notifica a sala específica da delegacia
     if (delegaciaId) {
       req.io.to(`delegacia_${delegaciaId}`).emit('novo_sos', sosCompleto.toJSON());
+
+      // Encontrar o agente mais próximo na delegacia para atribuir automaticamente
+      const nearestAgente = await findNearestAgente(delegaciaId, sos.latitude, sos.longitude);
+      if (nearestAgente) {
+        // Atualizar o SOS para incluir o agente responsável e alterar o status
+        await sos.update({
+          status: 'aguardando_autoridade',
+          autoridade_id: nearestAgente.id
+        });
+
+        // Recuperar os dados atualizados do SOS
+        const updatedSos = await Sos.findByPk(sos.id, {
+          include: [
+            { model: User, as: 'usuario' },
+            { model: Delegacia, as: 'delegacia' },
+            { model: Autoridade, as: 'autoridade' }
+          ]
+        });
+
+        // Notificar o agente específico sobre a nova atribuição
+        req.io.to(`autoridade_${nearestAgente.id}`).emit('nova_atribuicao_sos', updatedSos.toJSON());
+
+        // Atualizar o objeto completo com os novos dados
+        sosCompleto.dataValues.status = updatedSos.dataValues.status;
+        sosCompleto.dataValues.autoridade_id = updatedSos.dataValues.autoridade_id;
+      }
     } else {
       // Notifica uma sala geral de 'admin' se nenhuma delegacia for encontrada
       req.io.to('admin_geral').emit('novo_sos_nao_roteado', sosCompleto.toJSON());
@@ -62,11 +128,12 @@ exports.getAllSos = async (req, res) => {
       whereClause.usuario_id = req.user.id;
     }
 
-    const allSos = await Sos.findAll({ 
+    const allSos = await Sos.findAll({
       where: whereClause,
       include: [
         { model: User, as: 'usuario', attributes: ['nome_completo', 'telefone'] },
-        { model: Delegacia, as: 'delegacia' }
+        { model: Delegacia, as: 'delegacia' },
+        { model: Autoridade, as: 'autoridade', attributes: ['id', 'nome', 'cargo'] }
       ],
       order: [['createdAt', 'DESC']]
     });
@@ -84,7 +151,8 @@ exports.getSosById = async (req, res) => {
     const sos = await Sos.findByPk(req.params.id, {
       include: [
         { model: User, as: 'usuario' },
-        { model: Delegacia, as: 'delegacia' }
+        { model: Delegacia, as: 'delegacia' },
+        { model: Autoridade, as: 'autoridade', attributes: ['id', 'nome', 'cargo'] }
       ]
     });
 
@@ -125,7 +193,8 @@ exports.updateSos = async (req, res) => {
       const updatedSos = await Sos.findByPk(req.params.id, {
         include: [
           { model: User, as: 'usuario' },
-          { model: Delegacia, as: 'delegacia' }
+          { model: Delegacia, as: 'delegacia' },
+          { model: Autoridade, as: 'autoridade', attributes: ['id', 'nome', 'cargo'] }
         ]
       });
       // Verificar se req.user existe antes de usar

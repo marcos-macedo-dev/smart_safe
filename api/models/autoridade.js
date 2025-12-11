@@ -32,9 +32,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true // Pode ser nulo inicialmente para usuários convidados
     },
     cargo: {
-      type: DataTypes.ENUM('Operador', 'Admin'),
+      type: DataTypes.ENUM('Agente', 'Unidade'),
       allowNull: false,
-      defaultValue: 'Operador'
+      defaultValue: 'Agente'
     },
     ativo: {
       type: DataTypes.BOOLEAN,

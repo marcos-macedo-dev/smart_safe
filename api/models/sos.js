@@ -21,6 +21,11 @@ module.exports = (sequelize, DataTypes) => {
         as: 'usuario'
       });
 
+      this.belongsTo(models.Autoridade, {
+        foreignKey: 'autoridade_id',
+        as: 'autoridade'
+      });
+
       this.hasMany(models.Media, {
         foreignKey: 'sos_id',
         as: 'midia'
@@ -63,6 +68,16 @@ module.exports = (sequelize, DataTypes) => {
     delegacia_id: {
       type: DataTypes.INTEGER,
       allowNull: true
+    },
+    autoridade_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'autoridades',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     },
     status: {
       type: DataTypes.ENUM('pendente', 'ativo', 'aguardando_autoridade', 'fechado', 'cancelado'),

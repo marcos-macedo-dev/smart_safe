@@ -23,9 +23,9 @@ module.exports = {
         type: Sequelize.STRING
       },
       cargo: {
-        type: Sequelize.ENUM('Operador', 'Admin'),
+        type: Sequelize.ENUM('Agente', 'Unidade'),
         allowNull: false,
-        defaultValue: 'Operador'
+        defaultValue: 'Agente'
       },
       ativo: {
         allowNull: false,
@@ -42,6 +42,51 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      inviteToken: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        unique: true
+      },
+      inviteExpires: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      invitedBy: {
+        type: Sequelize.BIGINT,
+        allowNull: true,
+        references: {
+          model: 'autoridades',
+          key: 'id'
+        },
+        onUpdate: 'SET NULL',
+        onDelete: 'SET NULL'
+      },
+      acceptedAt: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      resetPasswordToken: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
+      resetPasswordExpires: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      pendingApproval: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      approvalToken: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        unique: true
+      },
+      approvalExpires: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE
@@ -52,7 +97,7 @@ module.exports = {
       }
     });
   },
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface, _Sequelize) {
     await queryInterface.dropTable('autoridades');
   }
 };

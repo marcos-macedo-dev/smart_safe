@@ -1,185 +1,239 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/user.dart';
-import '../models/media.dart'; // <-- Import adicionado
-import '../models/delegacia.dart';
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../models/delegacia.dart';
+import '../models/media.dart';
+import '../models/user.dart';
+
+/// Centraliza a comunicação HTTP com a API do backend,
+/// incluindo autenticação, interceptors e endpoints específicos.
 class ApiService {
-  static final Dio _dio = Dio(
-    BaseOptions(baseUrl: 'http://10.214.43.103:3002/api'),
-  );
-  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  ApiService._internal();
+
+  static final ApiService _instance = ApiService._internal();
+
+  factory ApiService() {
+    initialize();
+    return _instance;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Base configuration
+  // ---------------------------------------------------------------------------
+
+  static const String _baseUrl = 'http://192.168.18.8:3002/api';
+  static const Set<String> _authBypassPaths = {
+    '/auth/login',
+    '/auth/refresh-token',
+    '/users',
+  };
+
+  static final Dio _dio = Dio(BaseOptions(baseUrl: _baseUrl));
+  static final FlutterSecureStorage _secureStorage =
+      const FlutterSecureStorage();
+
+  static bool _initialized = false;
+
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
+
+  static void initialize() {
+    if (_initialized) return;
+    _setupInterceptors();
+    _initialized = true;
+    debugPrint('ApiService initialized with baseUrl=$_baseUrl');
+  }
 
   static void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          print(
-            'Interceptor - Requesting: ${options.method} ${options.path}',
-          ); // Added log
-          if (options.path.endsWith('/login') ||
-              options.path.endsWith('/users') ||
-              options.path.endsWith('/auth/refresh-token')) {
+          if (_shouldBypassAuth(options.path)) {
             return handler.next(options);
           }
-          String? token = await _secureStorage.read(key: 'token');
-          print('Interceptor: Token lido do storage: $token'); // Debug print
+
+          final token = await _secureStorage.read(key: 'token');
           if (token != null) {
-            print('Interceptor: Adicionando token ao cabeçalho.'); // Log
             options.headers['Authorization'] = 'Bearer $token';
-          } else {
-            print(
-              'Interceptor: Token é nulo, não adicionando ao cabeçalho.',
-            ); // Log
           }
           return handler.next(options);
         },
-        onError: (DioException error, handler) async {
-          if (error.response?.statusCode == 401) {
-            String? refreshToken = await _secureStorage.read(
-              key: 'refreshToken',
-            );
-            if (refreshToken != null) {
-              try {
-                final newTokens = await _refreshToken(refreshToken);
-                if (newTokens != null) {
-                  // Update tokens in storage
-                  await _secureStorage.write(
-                    key: 'token',
-                    value: newTokens['token'],
-                  );
-                  await _secureStorage.write(
-                    key: 'refreshToken',
-                    value: newTokens['refreshToken'],
-                  );
-
-                  // Retry the original request with the new token
-                  error.requestOptions.headers['Authorization'] =
-                      'Bearer ${newTokens['token']}';
-                  return handler.resolve(
-                    await _dio.fetch(error.requestOptions),
-                  );
-                }
-              } catch (e) {
-                print('Erro ao tentar refresh do token: $e');
-              }
-            }
-            // If refresh token is null or refresh failed, just let the request fail
-            // Don't automatically logout - let the calling code handle authentication errors
-            print(
-              'Token expirado e não foi possível renovar. Requisição falhou com 401.',
-            );
+        onError: (error, handler) async {
+          if (error.response?.statusCode != 401) {
+            return handler.next(error);
           }
-          return handler.next(error);
+
+          final refreshToken = await _secureStorage.read(key: 'refreshToken');
+          if (refreshToken == null) {
+            return handler.next(error);
+          }
+
+          final newTokens = await _refreshToken(refreshToken);
+          if (newTokens == null) {
+            return handler.next(error);
+          }
+
+          await _persistTokens(newTokens);
+          error.requestOptions.headers['Authorization'] =
+              'Bearer ${newTokens['token']}';
+          return handler.resolve(await _dio.fetch(error.requestOptions));
         },
       ),
     );
   }
 
-  static Future<Map<String, String>?> _refreshToken(String refreshToken) async {
+  static bool _shouldBypassAuth(String path) =>
+      _authBypassPaths.any((value) => path.endsWith(value));
+
+  // ---------------------------------------------------------------------------
+  // Token helpers
+  // ---------------------------------------------------------------------------
+
+  static Future<Map<String, dynamic>?> _refreshToken(
+    String refreshToken,
+  ) async {
     try {
       final response = await _dio.post(
         '/auth/refresh-token',
         data: {'refreshToken': refreshToken},
       );
-      if (response.statusCode == 200 && response.data != null) {
-        return {
-          'token': response.data['token'],
-          'refreshToken': response.data['refreshToken'],
-        };
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final payload = response.data as Map<String, dynamic>;
+        final data = payload['data'];
+        if (payload['success'] == true && data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
       }
-      return null;
     } catch (e) {
-      print('Erro na requisição de refresh token: $e');
-      return null;
+      debugPrint('Erro na requisição de refresh token: $e');
+    }
+    return null;
+  }
+
+  static Future<void> _persistTokens(Map<String, dynamic> tokens) async {
+    final token = tokens['token'] as String?;
+    final refresh = tokens['refreshToken'] as String?;
+
+    if (token != null) {
+      await _secureStorage.write(key: 'token', value: token);
+    }
+    if (refresh != null) {
+      await _secureStorage.write(key: 'refreshToken', value: refresh);
     }
   }
 
-  static void initialize() {
-    print('ApiService initialized.'); // Added log
-    _setupInterceptors();
-  }
-
-  static Future<bool> register(User user) async {
-    print('Payload de registro: ${user.toRegisterJson()}');
-    try {
-      Response response = await _dio.post(
-        '/users',
-        data: user.toRegisterJson(),
-      );
-      print('Registro - Status Code: ${response.statusCode}');
-      return response.statusCode == 201;
-    } catch (e) {
-      print('Erro no registro: $e');
-      return false;
+  static Future<void> _persistSession(Map<String, dynamic> payload) async {
+    await _persistTokens(payload);
+    final user = payload['user'] as Map<String, dynamic>?;
+    final userId = user?['id']?.toString();
+    if (userId != null) {
+      await _secureStorage.write(key: 'userId', value: userId);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Auth
+  // ---------------------------------------------------------------------------
 
   static Future<User?> login(String email, String senha) async {
     try {
-      Response response = await _dio.post(
+      final response = await _dio.post(
         '/auth/login',
         data: {'email': email, 'senha': senha},
       );
-      if (response.statusCode == 200) {
-        // Ensure data is not null and is a Map
-        if (response.data != null && response.data is Map<String, dynamic>) {
-          final data = response.data as Map<String, dynamic>; // Cast to Map
-          final token = data['token'] as String?;
-          final refreshToken = data['refreshToken'] as String?;
-          final userId = (data['user']?['id'] as int?)?.toString();
 
-          if (token != null) {
-            await _secureStorage.write(key: 'token', value: token);
-          }
-          if (refreshToken != null) {
-            await _secureStorage.write(
-              key: 'refreshToken',
-              value: refreshToken,
-            );
-          }
-          if (userId != null) {
-            await _secureStorage.write(key: 'userId', value: userId);
-          }
-
-          return User.fromJson(data['user']);
-        } else {
-          print('Erro no login: Resposta de dados inválida.');
-          return null;
-        }
+      if (response.statusCode != 200 ||
+          response.data is! Map<String, dynamic>) {
+        return null;
       }
-      return null;
+
+      final payload = response.data as Map<String, dynamic>;
+      final data = payload['data'];
+
+      if (payload['success'] != true || data is! Map<String, dynamic>) {
+        debugPrint('Erro no login: Payload inesperado $payload');
+        return null;
+      }
+
+      await _persistSession(data);
+      final user = data['user'] as Map<String, dynamic>?;
+      return user != null ? User.fromJson(user) : null;
     } catch (e) {
-      print('Erro no login: $e');
+      debugPrint('Erro no login: $e');
       return null;
     }
   }
 
   static Future<void> logout() async {
-    await _secureStorage.deleteAll(); // Clear all stored tokens and user info
-    // TODO: Implement navigation to login screen after logout
+    await _secureStorage.deleteAll();
   }
+
+  static Future<bool> register(User user) async {
+    try {
+      final response = await _dio.post('/users', data: user.toRegisterJson());
+      return response.statusCode == 201;
+    } catch (e) {
+      debugPrint('Erro no registro: $e');
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // User Profile
+  // ---------------------------------------------------------------------------
 
   static Future<User?> getProfile() async {
     try {
-      String? userId = await _secureStorage.read(key: 'userId');
-      print('ApiService - userId do storage: $userId'); // Log para userId
+      final userId = await _secureStorage.read(key: 'userId');
       if (userId == null) {
-        print('Erro ao buscar perfil: userId não encontrado no storage.');
+        debugPrint('getProfile: userId não encontrado no storage');
         return null;
       }
-      print('ApiService - URL da requisição: /users/$userId'); // Log para URL
-      Response response = await _dio.get('/users/$userId');
-      print(
-        'ApiService - Resposta do backend: ${response.data}',
-      ); // Log para resposta do backend
+
+      debugPrint('getProfile: Buscando perfil do usuário $userId');
+      final response = await _dio.get('/users/$userId');
+
       if (response.statusCode == 200) {
-        return User.fromJson(response.data);
+        debugPrint('getProfile: Resposta da API: ${response.data}');
+
+        if (response.data == null) {
+          debugPrint('getProfile: response.data é null');
+          return null;
+        }
+
+        try {
+          // A API retorna {success: true, data: {...}, message: ...}
+          // Precisamos extrair o campo 'data'
+          final userData =
+              response.data is Map<String, dynamic> &&
+                  response.data.containsKey('data')
+              ? response.data['data']
+              : response.data;
+
+          final user = User.fromJson(userData);
+          debugPrint(
+            'getProfile: User criado com sucesso: ${user.nome_completo}',
+          );
+          return user;
+        } catch (e, stackTrace) {
+          debugPrint('getProfile: Erro ao criar User a partir do JSON: $e');
+          debugPrint('getProfile: Stack trace: $stackTrace');
+          debugPrint('getProfile: JSON recebido: ${response.data}');
+          return null;
+        }
       }
+
+      debugPrint(
+        'getProfile: Status code diferente de 200: ${response.statusCode}',
+      );
       return null;
-    } catch (e) {
-      print('Erro ao buscar perfil: $e');
+    } catch (e, stackTrace) {
+      debugPrint('Erro ao buscar perfil: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
@@ -189,79 +243,68 @@ class ApiService {
     Map<String, dynamic> userData,
   ) async {
     try {
-      print(
-        'ApiService - Enviando atualização para /users/$userId com dados: $userData',
-      );
-      Response response = await _dio.put('/users/$userId', data: userData);
-      print('ApiService - Resposta de atualização: ${response.statusCode}');
+      final response = await _dio.put('/users/$userId', data: userData);
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar usuário: $e');
+      debugPrint('Erro ao atualizar usuário: $e');
       return false;
     }
   }
 
-  Future<Response> get(String path) async {
-    return await _dio.get(path);
-  }
+  // Instance HTTP helpers
+  Future<Response> get(String path, {Map<String, dynamic>? query}) =>
+      _dio.get(path, queryParameters: query);
 
-  Future<Response> post(String path, {dynamic data}) async {
-    return await _dio.post(path, data: data);
-  }
+  Future<Response> post(String path, {dynamic data}) =>
+      _dio.post(path, data: data);
 
-  Future<Response> put(String path, {dynamic data}) async {
-    return await _dio.put(path, data: data);
-  }
+  Future<Response> put(String path, {dynamic data}) =>
+      _dio.put(path, data: data);
 
-  Future<Response> delete(String path) async {
-    return await _dio.delete(path);
-  }
+  Future<Response> delete(String path) => _dio.delete(path);
+
+  // ---------------------------------------------------------------------------
+  // Media
+  // ---------------------------------------------------------------------------
 
   static Future<Media?> uploadFile(File file) async {
     try {
-      String fileName = file.path.split('/').last;
-      FormData formData = FormData.fromMap({
-        "file": await MultipartFile.fromFile(file.path, filename: fileName),
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: fileName),
       });
-      final response = await _dio.post("/upload", data: formData);
+      final response = await _dio.post('/upload', data: formData);
       if (response.statusCode == 200 && response.data != null) {
         return Media.fromJson(response.data);
       }
-      print(
-        'ApiService: Falha no upload do arquivo. Status: ${response.statusCode}, Dados: ${response.data}',
+      debugPrint(
+        'ApiService: Falha no upload. Status: ${response.statusCode}, Dados: ${response.data}',
       );
       return null;
     } catch (e) {
-      print('ApiService: Erro ao fazer upload do arquivo: $e');
+      debugPrint('ApiService: Erro ao fazer upload do arquivo: $e');
       return null;
     }
   }
 
-  /// Buscar todas as delegacias
+  // ---------------------------------------------------------------------------
+  // Delegacias
+  // ---------------------------------------------------------------------------
+
   static Future<List<Delegacia>> getDelegacias() async {
     try {
-      final response = await _dio.get('/delegacias'); // endpoint da API
+      final response = await _dio.get('/delegacias');
       if (response.statusCode == 200 && response.data != null) {
         final delegaciasData = _extractDelegaciaList(response.data);
         return delegaciasData.map((json) => Delegacia.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar delegacias: $e');
+      debugPrint('Erro ao buscar delegacias: $e');
       return [];
     }
   }
 
-  static List<dynamic> _extractDelegaciaList(dynamic rawData) {
-    if (rawData is List) return rawData;
-    if (rawData is Map<String, dynamic>) {
-      final nested = rawData['delegacias'];
-      if (nested is List) return nested;
-    }
-    return [];
-  }
-
-  /// Buscar delegacias próximas (opcional: latitude, longitude, radius em km)
   static Future<List<Delegacia>> getDelegaciasProximas({
     required double latitude,
     required double longitude,
@@ -282,10 +325,23 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar delegacias próximas: $e');
+      debugPrint('Erro ao buscar delegacias próximas: $e');
       return [];
     }
   }
+
+  static List<dynamic> _extractDelegaciaList(dynamic rawData) {
+    if (rawData is List) return rawData;
+    if (rawData is Map<String, dynamic>) {
+      final nested = rawData['delegacias'];
+      if (nested is List) return nested;
+    }
+    return [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Password flows
+  // ---------------------------------------------------------------------------
 
   static Future<bool> forgotPassword(String email) async {
     try {
@@ -293,12 +349,9 @@ class ApiService {
         '/auth/forgot-password',
         data: {'email': email},
       );
-      // Consider success if the server returns 200 OK,
-      // as the server should not reveal if the email is registered.
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro na solicitação de redefinição de senha: $e');
-      // Return false on error, the UI will handle the user message.
+      debugPrint('Erro na solicitação de redefinição de senha: $e');
       return false;
     }
   }
@@ -309,12 +362,9 @@ class ApiService {
         '/auth/request-password-reset/user',
         data: {'email': email},
       );
-      // Consider success if the server returns 200 OK,
-      // as the server should not reveal if the email is registered.
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro na geração de OTP: $e');
-      // Return false on error, the UI will handle the user message.
+      debugPrint('Erro na geração de OTP: $e');
       return false;
     }
   }
@@ -331,11 +381,12 @@ class ApiService {
       );
       return {'success': response.statusCode == 200};
     } on DioException catch (e) {
-      print('Erro na redefinição de senha com OTP: $e');
-      if (e.response?.data != null && e.response!.data['message'] != null) {
-        return {'success': false, 'message': e.response!.data['message']};
-      }
-      return {'success': false, 'message': 'Erro desconhecido'};
+      debugPrint('Erro na redefinição de senha com OTP: $e');
+      final message =
+          e.response?.data != null && e.response!.data['message'] != null
+          ? e.response!.data['message']
+          : 'Erro desconhecido';
+      return {'success': false, 'message': message};
     }
   }
 
@@ -350,7 +401,7 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro na alteração de senha: $e');
+      debugPrint('Erro na alteração de senha: $e');
       return false;
     }
   }

@@ -102,7 +102,7 @@
               </RouterLink>
 
               <RouterLink
-                v-if="user?.cargo === 'Admin'"
+                v-if="user?.cargo === 'Unidade'"
                 to="/users"
                 class="flex items-center px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700/30"
                 role="menuitem"

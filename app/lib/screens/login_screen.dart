@@ -1,12 +1,11 @@
+import 'package:app/screens/root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'main_layout.dart';
-import 'root_screen.dart';
-import 'welcome_screen.dart';
-import '../services/api_service.dart';
+
 import '../models/user.dart';
+import '../services/api_service.dart';
 import '../services/biometric_auth_service.dart';
+import 'welcome_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,16 +14,35 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
   final BiometricAuthService _biometricAuthService = BiometricAuthService();
 
   bool _canCheckBiometrics = false;
   bool _isAuthenticating = false;
   bool _showBiometricOption = false;
   bool _isLoading = false;
-  bool _obscurePassword = true;
+
+  String? _emailError;
+  String? _passwordError;
+
+  late final AnimationController _animController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 350),
+  )..forward();
+
+  late final Animation<double> _fadeAnimation = CurvedAnimation(
+    parent: _animController,
+    curve: Curves.easeOut,
+  );
+  late final Animation<Offset> _slideAnimation = Tween<Offset>(
+    begin: const Offset(0, 0.05),
+    end: Offset.zero,
+  ).animate(_fadeAnimation);
 
   @override
   void initState() {
@@ -32,13 +50,20 @@ class _LoginScreenState extends State<LoginScreen> {
     _initializeBiometrics();
   }
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _animController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeBiometrics() async {
     _canCheckBiometrics = await _biometricAuthService.canAuthenticate();
-    final bool biometricEnabled = await _biometricAuthService
+    final biometricEnabled = await _biometricAuthService
         .getBiometricPreference();
-
-    print('LoginScreen: _canCheckBiometrics: $_canCheckBiometrics');
-    print('LoginScreen: biometricEnabled (preference): $biometricEnabled');
 
     if (mounted) {
       setState(() {
@@ -46,12 +71,25 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
 
-    print('LoginScreen: _showBiometricOption: $_showBiometricOption');
-
     if (_showBiometricOption) {
-      print('LoginScreen: Attempting automatic biometric authentication...');
-      _authenticateWithBiometrics(); // Reativado para tentar autenticação automática
+      _authenticateWithBiometrics();
     }
+  }
+
+  void _validateEmail(String value) {
+    setState(() {
+      _emailError = value.isNotEmpty && value.contains('@')
+          ? null
+          : 'Email inválido';
+    });
+  }
+
+  void _validatePassword(String value) {
+    setState(() {
+      _passwordError = value.isNotEmpty && value.length >= 6
+          ? null
+          : 'Mínimo 6 caracteres';
+    });
   }
 
   Future<void> _authenticateWithBiometrics() async {
@@ -60,9 +98,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       setState(() => _isAuthenticating = true);
       final authenticated = await _biometricAuthService.authenticate();
-
-      print('LoginScreen: Biometric authentication result: $authenticated');
-
       if (!mounted) return;
 
       if (authenticated) {
@@ -70,12 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user != null) {
           _navigateToMain();
         } else {
-          _showMessage('Sessão expirada. Por favor, faça login novamente.');
+          _showMessage('Sessão expirada. Faça login novamente.');
           await _biometricAuthService.saveBiometricPreference(false);
           if (mounted) setState(() => _showBiometricOption = false);
         }
       } else {
-        _showMessage('Autenticação biométrica falhou. Tente novamente.');
+        _showMessage('Autenticação biométrica falhou.');
       }
     } on PlatformException catch (e) {
       if (e.code != 'AUTH_CANCELED' && e.code != 'NOT_ENROLLED') {
@@ -86,16 +121,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      _showMessage('Preencha email e senha');
-      return;
-    }
+  Future<void> _login() async {
+    _validateEmail(_emailController.text.trim());
+    _validatePassword(_passwordController.text.trim());
+    if (_emailError != null || _passwordError != null) return;
+
     setState(() => _isLoading = true);
     try {
-      final User? user = await ApiService.login(email, password);
+      final User? user = await ApiService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
       if (user != null) {
         await _promptForBiometrics();
         if (!mounted) return;
@@ -103,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         _showMessage('Credenciais inválidas');
       }
-    } catch (e) {
+    } catch (_) {
       _showMessage('Erro ao fazer login. Tente novamente.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -113,26 +149,46 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _promptForBiometrics() async {
     if (!await _biometricAuthService.canAuthenticate()) return;
 
-    final bool? enableBiometrics = await showDialog<bool>(
+    final enableBiometrics = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Login Rápido'),
-          content: const Text(
-            'Deseja habilitar o login com reconhecimento facial/digital para futuros acessos?',
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Login rápido',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.3,
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Não'),
+        ),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Deseja habilitar login com Face ID/Touch ID para futuros acessos?',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontSize: 13, letterSpacing: -0.1),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Agora não',
+              style: TextStyle(fontWeight: FontWeight.w400),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Sim'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 144, 179, 201),
             ),
-          ],
-        );
-      },
+            child: const Text(
+              'Habilitar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
 
     if (enableBiometrics != null) {
@@ -147,26 +203,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateToMain() {
     if (!mounted) return;
-
-    try {
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 300),
-          pageBuilder: (_, __, ___) => MainLayoutWithIndicators(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    } catch (e) {
-      print('Erro ao navegar para MainLayout: $e');
-      // Fallback para navegação simples
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => MainLayoutWithIndicators()),
-      );
-    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainLayoutWithIndicators()),
+    );
   }
 
   void _navigateToWelcome() {
@@ -185,21 +225,41 @@ class _LoginScreenState extends State<LoginScreen> {
     return false;
   }
 
-  void _showMessage(String msg) {
+  void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-        backgroundColor: Theme.of(context).colorScheme.errorContainer,
-        action: SnackBarAction(
-          label: 'Fechar',
-          textColor: Theme.of(context).colorScheme.onErrorContainer,
-          onPressed: () {},
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Aviso',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+              ),
         ),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            message,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 13,
+                  letterSpacing: -0.1,
+                ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF004A77),
+            ),
+            child: const Text(
+              'OK',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -207,273 +267,204 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return WillPopScope(
-      onWillPop: _handleBackNavigation,
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
+
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        await _handleBackNavigation();
+      },
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: colorScheme.surface,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: colorScheme.surface.withOpacity(0.9),
           elevation: 0,
           leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new_outlined,
-              color: theme.colorScheme.onSurface,
-              size: 24,
-            ),
             onPressed: () async {
-              final shouldPop = await _handleBackNavigation();
-              if (shouldPop && mounted) {
-                Navigator.of(context).pop();
-              }
+              final canLeave = await _handleBackNavigation();
+              if (canLeave && mounted) Navigator.of(context).pop();
             },
-            splashRadius: 24,
+            icon: Icon(Icons.arrow_back, color: colorScheme.primary),
           ),
-          title: Text(
-            'Login',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          centerTitle: true,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Semantics(
-                  label: 'Título de boas-vindas',
-                  child: Text(
-                    'Bem-vindo de volta',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: theme.colorScheme.onSurface,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: -0.2, end: 0),
-                const SizedBox(height: 8),
-                Semantics(
-                  label: 'Descrição da tela de login',
-                  child: Text(
-                    'Entre na sua conta para continuar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.7,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    // Título principal com Material Design 3
+                    Text(
+                      'Bem-vinda',
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                        letterSpacing: -0.5,
+                        fontSize: textScaler.scale(34),
                       ),
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: 200.ms)
-                    .slideY(begin: -0.2, end: 0),
-                const SizedBox(height: 40),
-                _buildTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  icon: Icons.alternate_email_outlined,
-                  inputType: TextInputType.emailAddress,
-                  theme: theme,
-                )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: 400.ms)
-                    .slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 20),
-                _buildTextField(
-                  controller: _passwordController,
-                  label: 'Senha',
-                  icon: Icons.lock_outline_rounded,
-                  obscureText: _obscurePassword,
-                  theme: theme,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      size: 22,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Acesse sua conta com segurança',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: colorScheme.onSurfaceVariant,
+                        letterSpacing: -0.2,
+                        fontSize: textScaler.scale(17),
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                    splashRadius: 24,
-                  ),
-                  onSubmitted: (_) => _login(),
-                )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: 600.ms)
-                    .slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/forgot-password'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(50, 36),
+                    const SizedBox(height: 32),
+                    // Campo de email com Material Design 3
+                    _buildMaterialField(
+                      controller: _emailController,
+                      focusNode: _emailFocus,
+                      label: 'Email',
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: _validateEmail,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) =>
+                          FocusScope.of(context).requestFocus(_passwordFocus),
+                      errorText: _emailError,
+                      icon: Icons.email_outlined,
                     ),
-                    child: Semantics(
-                      label: 'Botão para recuperar senha esquecida',
-                      child: Text(
-                        'Esqueceu a senha?',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                    const SizedBox(height: 16),
+                    // Campo de senha com Material Design 3
+                    _buildMaterialField(
+                      controller: _passwordController,
+                      focusNode: _passwordFocus,
+                      label: 'Senha',
+                      obscureText: true,
+                      onChanged: _validatePassword,
+                      onSubmitted: (_) => _login(),
+                      errorText: _passwordError,
+                      icon: Icons.lock_outline,
+                    ),
+                    const SizedBox(height: 16),
+                    // Link "Esqueceu a senha?" discreto
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/forgot-password'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Esqueceu a senha?',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.primary,
+                            letterSpacing: -0.2,
+                            fontSize: textScaler.scale(15),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: 800.ms)
-                    .slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      elevation: 2,
-                      shadowColor:
-                          theme.colorScheme.primary.withOpacity(0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      disabledBackgroundColor:
-                          theme.colorScheme.primary.withOpacity(0.6),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                theme.colorScheme.onPrimary,
+                    const SizedBox(height: 24),
+                    // Botão de login principal - destaque suave
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          backgroundColor: const Color(0xFF004A77),
+                          disabledBackgroundColor: colorScheme.onSurface
+                              .withOpacity(0.12),
+                        ),
+                        child: _isLoading
+                            ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    colorScheme.onPrimary,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                'Entrar',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.2,
+                                  fontSize: textScaler.scale(17),
+                                ),
                               ),
+                      ),
+                    ),
+                    if (_showBiometricOption) ...[
+                      const SizedBox(height: 24),
+                      _buildDivider(context),
+                      const SizedBox(height: 24),
+                      // Botão de biometria minimalista
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _isAuthenticating
+                              ? null
+                              : _authenticateWithBiometrics,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : Row(
+                            side: BorderSide(
+                              color: colorScheme.outline,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.login_rounded,
-                                size: 20,
-                                color: theme.colorScheme.onPrimary,
-                              ),
-                              const SizedBox(width: 8),
+                              if (_isAuthenticating)
+                                SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      colorScheme.onSurface,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  Icons.fingerprint,
+                                  color: colorScheme.onSurface,
+                                  size: 20,
+                                ),
+                              const SizedBox(width: 10),
                               Text(
-                                'Entrar',
-                                style: TextStyle(
-                                  fontSize: 16,
+                                'Usar biometria',
+                                style: theme.textTheme.labelLarge?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onPrimary,
+                                  color: colorScheme.onSurface,
+                                  letterSpacing: -0.2,
+                                  fontSize: textScaler.scale(17),
                                 ),
                               ),
                             ],
                           ),
-                  ),
-                )
-                    .animate()
-                    .fadeIn(duration: 600.ms, delay: 1000.ms)
-                    .scale(begin: Offset(0.9, 0.9), end: Offset(1, 1)),
-                if (_showBiometricOption) ...[
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: theme.colorScheme.onSurface.withOpacity(0.2),
-                          thickness: 1,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'ou',
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface
-                                .withOpacity(0.5),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: theme.colorScheme.onSurface.withOpacity(0.2),
-                          thickness: 1,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed:
-                          _isAuthenticating ? null : _authenticateWithBiometrics,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: theme.colorScheme.primary.withOpacity(0.4),
-                          width: 1.5,
-                        ),
-                        foregroundColor: theme.colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      icon: _isAuthenticating
-                          ? SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  theme.colorScheme.primary,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Icons.fingerprint_rounded,
-                              size: 22,
-                              color: theme.colorScheme.primary,
-                            ),
-                      label: Text(
-                        'Usar biometria',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 1200.ms)
-                      .scale(begin: Offset(0.9, 0.9), end: Offset(1, 1)),
-                ],
-                const SizedBox(height: 40),
-              ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -481,65 +472,103 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildMaterialField({
     required TextEditingController controller,
+    required FocusNode focusNode,
     required String label,
-    required IconData icon,
-    required ThemeData theme,
-    TextInputType inputType = TextInputType.text,
+    required ValueChanged<String> onChanged,
+    TextInputType keyboardType = TextInputType.text,
+    TextInputAction? textInputAction,
     bool obscureText = false,
-    Widget? suffixIcon,
-    void Function(String)? onSubmitted,
+    ValueChanged<String>? onSubmitted,
+    String? errorText,
+    IconData? icon,
   }) {
-    return Semantics(
-      label: 'Campo de entrada para $label',
-      hint: obscureText ? 'Digite sua senha' : 'Digite seu $label',
-      child: TextField(
-        controller: controller,
-        keyboardType: inputType,
-        obscureText: obscureText,
-        onSubmitted: onSubmitted,
-        style: TextStyle(
-          fontSize: 16,
-          color: theme.colorScheme.onSurface,
-          fontWeight: FontWeight.w500,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
+
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      obscureText: obscureText,
+      onChanged: onChanged,
+      onFieldSubmitted: onSubmitted,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        fontSize: textScaler.scale(16),
+        color: colorScheme.onSurface,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontSize: textScaler.scale(16),
         ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: theme.colorScheme.primary.withOpacity(0.8),
-            size: 22,
-          ),
-          suffixIcon: suffixIcon,
-          filled: true,
-          fillColor: theme.colorScheme.primary.withOpacity(0.06),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: theme.colorScheme.onSurface.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
+        prefixIcon: icon != null
+            ? Icon(icon, color: colorScheme.onSurfaceVariant, size: 24)
+            : null,
+        filled: true,
+        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: const Color(0xFF004A77), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
+        ),
+        errorText: errorText,
+        errorStyle: theme.textTheme.bodySmall?.copyWith(
+          color: colorScheme.error,
+          fontSize: textScaler.scale(12),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
         ),
       ),
+    );
+  }
+
+  Widget _buildDivider(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Container(height: 0.5, color: colorScheme.outlineVariant),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'ou',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(15),
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(height: 0.5, color: colorScheme.outlineVariant),
+        ),
+      ],
     );
   }
 }

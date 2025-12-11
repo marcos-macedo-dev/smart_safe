@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'package:app/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -13,7 +14,6 @@ import '../services/audio_service.dart';
 import '../services/camera_service.dart';
 import '../services/sos_service.dart';
 import '../services/api_service.dart';
-import '../services/haptic_service.dart';
 import 'sos_action_dialog.dart';
 
 class SosScreen extends StatefulWidget {
@@ -26,7 +26,6 @@ class SosScreen extends StatefulWidget {
 class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   // Serviços
   final AudioService _audioService = AudioService();
-  final HapticService _hapticService = HapticService();
   CameraService? _cameraService;
   late final SosService _sosService;
   final _storage = const FlutterSecureStorage();
@@ -34,6 +33,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
   // Constantes
   static const String _selectedActionKey = 'selected_sos_action';
+  // Paleta violeta institucional
+  static const Color _violetaEscura = Color(0xFF311756);
+  static const Color _violetaMedia = Color(0xFF401F56);
 
   // Estado da UI
   bool _recording = false;
@@ -46,7 +48,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
 
   // Detecção de movimento de emergência
   StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
-  double _lastAcceleration = 0.0;
   bool _emergencyModeActive = false;
   Timer? _emergencyModeTimer;
 
@@ -151,8 +152,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         // ~2.5g
         _activateEmergencyMode();
       }
-
-      _lastAcceleration = acceleration;
     });
   }
 
@@ -160,9 +159,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     if (_emergencyModeActive) return;
 
     setState(() => _emergencyModeActive = true);
-
-    // Feedback de emergência imediato
-    _hapticService.emergencyFeedback();
 
     // Timer para desativar o modo de emergência após 30 segundos
     _emergencyModeTimer = Timer(const Duration(seconds: 30), () {
@@ -236,13 +232,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Future<void> _selectAction(String action) async {
     await _storage.write(key: _selectedActionKey, value: action);
     setState(() => _currentAction = action);
-    await _hapticService.lightImpact();
   }
 
   Future<void> _onSosPressed() async {
-    // Feedback de emergência para máxima atenção
-    await _hapticService.emergencyFeedback();
-
     if (_recording) {
       if (_currentAction == 'audio') {
         await _stopAudioRecording();
@@ -263,7 +255,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       _recording = true;
       _currentAction = action;
     });
-    _hapticService.toggleHapticLoop(true);
     try {
       if (action == 'audio') {
         await _audioService.toggleRecording();
@@ -273,7 +264,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         if (!_cameraService!.initialized) {
           _showMessage('Falha ao inicializar câmera');
           setState(() => _recording = false);
-          _hapticService.toggleHapticLoop(false);
           return;
         }
         await _cameraService!.startRecording();
@@ -281,7 +271,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     } catch (e) {
       _showMessage('Erro ao iniciar gravação: $e');
       setState(() => _recording = false);
-      _hapticService.toggleHapticLoop(false);
     }
   }
 
@@ -298,7 +287,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _stopAudioRecording() async {
-    _hapticService.toggleHapticLoop(false);
     if (!_audioService.recording) {
       setState(() => _recording = false);
       return;
@@ -340,7 +328,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _stopVideoRecording() async {
-    _hapticService.toggleHapticLoop(false);
     if (_cameraService == null || !_cameraService!.recording) return;
     try {
       final File? videoFile = await _cameraService!.stopRecording();
@@ -524,25 +511,27 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     if (_isInitializing) {
       return Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: colorScheme.surface,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary,
-                ),
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(_violetaMedia),
               ),
               const SizedBox(height: 16),
               Text(
                 'Carregando...',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: textScaler.scale(15),
+                  color: colorScheme.onSurfaceVariant,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
@@ -552,26 +541,32 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     }
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header compacto
-              _buildHeader(theme),
-              // Espaço flexível para empurrar o botão SOS para baixo
+              const SizedBox(height: 20),
+              // Header compacto com status
+              _buildHeader(theme, colorScheme, textScaler),
               const Spacer(flex: 2),
-              // Botão SOS Principal (menor e mais harmonioso)
-              _buildMainSosButton(theme),
-              // Espaço menor
+              // Botão SOS Principal centralizado
+              Center(child: _buildMainSosButton(theme, colorScheme)),
               const SizedBox(height: 32),
               // Indicador do tipo selecionado
-              _buildCurrentActionIndicator(theme),
-              // Espaço flexível
-              const Spacer(flex: 1),
-              // Controles na parte inferior (fácil acesso com polegar)
-              _buildBottomControls(theme),
+              Center(
+                child: _buildCurrentActionIndicator(
+                  theme,
+                  colorScheme,
+                  textScaler,
+                ),
+              ),
+              const Spacer(flex: 3),
+              // Controles na parte inferior
+              _buildBottomControls(theme, colorScheme, textScaler),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -579,80 +574,87 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
-      child: Row(
-        children: [
-          const Spacer(),
-          // Indicador de conectividade
+  Widget _buildHeader(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
+    return Row(
+      children: [
+        // Indicador de conectividade
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _isOnline ? _violetaEscura : Colors.orange.withAlpha(30),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _isOnline ? _violetaEscura : Colors.orange.withAlpha(80),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _isOnline ? Icons.wifi : Icons.wifi_off,
+                size: 16,
+                color: _isOnline ? Colors.white : Colors.orange,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _isOnline ? 'Online' : 'Offline',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _isOnline ? Colors.white : Colors.orange,
+                  fontSize: textScaler.scale(12),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (_recording)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _isOnline
-                  ? theme.colorScheme.primary.withAlpha(200)
-                  : Colors.orange.withAlpha(200),
-              borderRadius: BorderRadius.circular(16),
+              color: colorScheme.error.withAlpha(15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: colorScheme.error.withAlpha(30),
+                width: 1,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _isOnline ? Icons.wifi : Icons.wifi_off,
-                  size: 12,
-                  color: Colors.white,
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: colorScheme.error,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 Text(
-                  _isOnline ? 'ONLINE' : 'OFFLINE',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
+                  'Gravando',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.error,
+                    fontSize: textScaler.scale(12),
                     fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ],
             ),
           ),
-          if (_recording) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.error.withAlpha(200),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'GRAVANDO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
+      ],
     );
   }
 
-  // Botão SOS Principal (agora menor: 220x220)
-  Widget _buildMainSosButton(ThemeData theme) {
+  // Botão SOS Principal (estilo mais minimalista como o login)
+  Widget _buildMainSosButton(ThemeData theme, ColorScheme colorScheme) {
     return ScaleTransition(
       scale: _recording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
       child: Container(
@@ -660,50 +662,45 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: theme.colorScheme.error.withAlpha(40),
-              blurRadius: 16,
-              spreadRadius: 2,
+              color: _emergencyModeActive
+                  ? Colors.red.withAlpha(40)
+                  : colorScheme.error.withAlpha(20),
+              blurRadius: 24,
+              spreadRadius: 4,
+              offset: const Offset(0, 8),
             ),
-            // Indicador de emergência: borda pulsante vermelha
-            if (_emergencyModeActive)
-              BoxShadow(
-                color: Colors.red.withAlpha(120),
-                blurRadius: 12,
-                spreadRadius: 1,
-              ),
           ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
             SizedBox(
-              width: 220, // Reduzido para 220 para visual mais slim
-              height: 220, // Reduzido para 220 para visual mais slim
+              width: 200,
+              height: 200,
               child: ElevatedButton(
                 onPressed: _onSosPressed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _emergencyModeActive
                       ? Colors.red.shade900
-                      : theme.colorScheme.error,
+                      : colorScheme.error,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: const CircleBorder(),
+                  padding: EdgeInsets.zero,
                 ),
                 child: Icon(
                   _recording ? Icons.stop_rounded : Icons.warning_rounded,
-                  size: _recording
-                      ? 72
-                      : 90, // Reduzido para 72/90 para proporção harmoniosa
+                  size: _recording ? 64 : 80,
                 ),
               ),
             ),
             // Texto de emergência quando ativo
             if (_emergencyModeActive)
               Positioned(
-                bottom: 16,
+                bottom: 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
+                    horizontal: 12,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
@@ -711,11 +708,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Text(
-                    'EMERGÊNCIA DETECTADA',
+                    'EMERGÊNCIA',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -726,26 +724,31 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCurrentActionIndicator(ThemeData theme) {
+  Widget _buildCurrentActionIndicator(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     final actionInfo = _getActionInfo(_currentAction);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.primary.withAlpha(30)),
+        color: _violetaEscura,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _violetaEscura, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(actionInfo['icon'], size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 6),
+          Icon(actionInfo['icon'], size: 20, color: Colors.white),
+          const SizedBox(width: 8),
           Text(
             actionInfo['label'],
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(15),
               fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
+              color: Colors.white,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -766,48 +769,88 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     }
   }
 
-  Widget _buildBottomControls(ThemeData theme) {
+  Widget _buildBottomControls(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Column(
       children: [
-        // Seletor de tipo de SOS
+        // Label
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Tipo de alerta',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(15),
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Seletor de tipo de SOS (estilo dos campos do login)
         Row(
           children: [
-            _buildQuickActionButton('audio', Icons.mic_rounded, theme),
+            _buildQuickActionButton(
+              'audio',
+              Icons.mic_rounded,
+              theme,
+              colorScheme,
+            ),
             const SizedBox(width: 12),
-            _buildQuickActionButton('video', Icons.videocam_rounded, theme),
+            _buildQuickActionButton(
+              'video',
+              Icons.videocam_rounded,
+              theme,
+              colorScheme,
+            ),
             const SizedBox(width: 12),
             _buildQuickActionButton(
               'location',
               Icons.location_on_rounded,
               theme,
+              colorScheme,
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
         // Toggle de localização em tempo real
-        Row(
-          children: [
-            Icon(
-              Icons.my_location_rounded,
-              size: 18,
-              color: theme.colorScheme.onSurface.withAlpha(140),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Localização contínua',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurface.withAlpha(140),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colorScheme.outline, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.my_location_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Localização contínua',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: textScaler.scale(15),
+                    color: colorScheme.onSurface,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
-            ),
-            Switch.adaptive(
-              value: _sendLocationRealtime,
-              onChanged: _activeSosId != null ? _toggleRealtimeLocation : null,
-              activeColor: theme.colorScheme.primary,
-            ),
-          ],
+              Switch.adaptive(
+                value: _sendLocationRealtime,
+                onChanged: _activeSosId != null
+                    ? _toggleRealtimeLocation
+                    : null,
+                activeColor: _violetaMedia,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -817,23 +860,28 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     String action,
     IconData icon,
     ThemeData theme,
+    ColorScheme colorScheme,
   ) {
     final isSelected = _currentAction == action;
     return Expanded(
       child: GestureDetector(
         onTap: () => _selectAction(action),
         child: Container(
-          height: 48,
+          height: 56,
           decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.primary.withAlpha(15),
+                ? _violetaEscura
+                : colorScheme.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? _violetaEscura : colorScheme.outline,
+              width: 1,
+            ),
           ),
           child: Icon(
             icon,
             size: 24,
-            color: isSelected ? Colors.white : theme.colorScheme.primary,
+            color: isSelected ? Colors.white : colorScheme.onSurface,
           ),
         ),
       ),

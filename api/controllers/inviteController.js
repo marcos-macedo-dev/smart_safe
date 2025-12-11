@@ -21,7 +21,7 @@ exports.sendInvite = async (req, res) => {
       cargo,
       delegacia_id
     } = req.body;
-    const invitingAdmin = req.user; // Admin que está enviando o convite
+    const invitingAdmin = req.user; // Unidade que está enviando o convite
 
     // Verificar se o usuário já existe
     const existingUser = await Autoridade.findOne({

@@ -4,22 +4,22 @@
 
     <!-- Estatísticas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <!-- Total de Operadores -->
+      <!-- Total de Autoridades -->
       <div
         class="bg-white dark:bg-zinc-800 rounded-md shadow-sm p-4 border border-zinc-200 dark:border-zinc-700"
       >
         <div class="flex items-center justify-between">
           <div>
             <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-              Operadores
+              Autoridades
             </p>
             <p class="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
-              {{ stats.totalOperadores }}
+              {{ stats.totalAutoridades }}
             </p>
           </div>
           <Users class="w-8 h-8 text-blue-500" />
         </div>
-        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-2">Total de operadores ativos</p>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-2">Total de autoridades ativas</p>
       </div>
 
       <!-- SOS Recebidos (7 dias) -->
@@ -220,7 +220,7 @@ const toast = useToastStore()
 
 // Estado
 const stats = ref({
-  totalOperadores: 0,
+  totalAutoridades: 0,
   totalDelegacias: 0,
   sos7dias: 0,
   taxaResolucao: 0,
@@ -262,7 +262,7 @@ const carregarEstatisticas = async () => {
     const sosPorDiaSemana = sosPorDiaSemanaResp.data || {}
     
     // Atualizar estatísticas básicas
-    stats.value.totalOperadores = operadores.filter((user) => user && user.ativo).length
+    stats.value.totalAutoridades = operadores.filter((user) => user && user.ativo).length
     stats.value.totalDelegacias = 1 // Apenas a delegacia do usuário logado
     
     // Atualizar estatísticas da delegacia
@@ -308,10 +308,10 @@ const carregarAtividadesRecentes = (operadores, sosList) => {
     const operadoresValidos = Array.isArray(operadores) ? operadores : []
     const sosValidos = Array.isArray(sosList) ? sosList : []
 
-    // Atividades de operadores
+    // Atividades de autoridades
     const atividadesOperadores = operadoresValidos.slice(0, 3).map((operador) => ({
       id: `op-${operador.id}`,
-      titulo: `Novo operador adicionado`,
+      titulo: `Nova autoridade adicionada`,
       descricao: `${operador.nome} foi adicionado como ${operador.cargo}`,
       data: operador.createdAt,
     }))

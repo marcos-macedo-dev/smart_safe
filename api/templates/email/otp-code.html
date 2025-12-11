@@ -33,7 +33,7 @@
             }
         }
         .header {
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
             color: white;
             padding: 24px 20px;
             text-align: center;
@@ -56,70 +56,76 @@
         }
         .code {
             display: inline-block;
-            background-color: #f4f4f5;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             color: #09090b;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 15px 25px;
+            border-radius: 12px;
             font-weight: 600;
-            font-size: 24px;
-            letter-spacing: 4px;
+            font-size: 28px;
+            letter-spacing: 6px;
             margin: 20px 0;
+            border: 2px solid #cbd5e1;
+            font-family: 'Courier New', Consolas, monospace;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
         @media (prefers-color-scheme: dark) {
             .code {
-                background-color: #27272a;
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
                 color: #fafafa;
+                border-color: #475569;
             }
         }
         .footer {
-            background-color: #f4f4f5;
+            background-color: #1e3a8a;
             padding: 20px 24px;
             text-align: center;
             font-size: 13px;
-            color: #71717a;
-            border-top: 1px solid #e4e4e7;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
         }
         @media (prefers-color-scheme: dark) {
             .footer {
-                background-color: #18181b;
-                color: #a1a1aa;
-                border-top: 1px solid #27272a;
+                background-color: #0f172a;
+                color: #94a3b8;
+                border-top: 1px solid #1e293b;
             }
         }
         .footer p {
             margin: 0;
         }
         .warning {
-            background-color: #fef3c7;
-            padding: 16px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border-left: 3px solid #f59e0b;
+            border-left: 4px solid #dc2626;
         }
         @media (prefers-color-scheme: dark) {
             .warning {
-                background-color: #45260a;
+                background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
             }
         }
         .warning p {
             margin: 0;
             font-size: 15px;
-            color: #92400e;
+            color: #991b1b;
         }
         @media (prefers-color-scheme: dark) {
             .warning p {
-                color: #fcd34d;
+                color: #fca5a5;
             }
         }
         .info {
-            background-color: #f4f4f5;
-            padding: 16px;
+            background-color: #f8fafc;
+            padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
+            border-left: 4px solid #2563eb;
         }
         @media (prefers-color-scheme: dark) {
             .info {
-                background-color: #27272a;
+                background-color: #0f172a;
             }
         }
         .info p {
@@ -135,9 +141,9 @@
         </div>
         <div class="content">
             <p>Olá,</p>
-            
+
             <p>Você solicitou a redefinição de senha para sua conta no <strong>Smart Safe</strong>.</p>
-            
+
             <p>Use o seguinte código de verificação para prosseguir com a redefinição da sua senha:</p>
             
             <div style="text-align: center;">

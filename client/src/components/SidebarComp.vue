@@ -163,7 +163,7 @@ const menuItems = [
     icon: Home,
     path: '/dashboard',
     name: 'dashboard',
-    cargos: ['Admin', 'Operador'],
+    cargos: ['Unidade', 'Agente'],
   },
 
   // Navegação principal
@@ -172,14 +172,14 @@ const menuItems = [
     icon: Map,
     path: '/map',
     name: 'map',
-    cargos: ['Admin', 'Operador'],
+    cargos: ['Unidade', 'Agente'],
   },
   {
     label: 'SOS',
     icon: AlertTriangle,
     path: '/sos',
     name: 'sos',
-    cargos: ['Admin', 'Operador'],
+    cargos: ['Unidade', 'Agente'],
   },
 
   // Gestão de usuários
@@ -188,7 +188,7 @@ const menuItems = [
     icon: Users,
     path: '/users',
     name: 'users',
-    cargos: ['Admin'],
+    cargos: ['Unidade'],
   },
 
   // Relatórios e análises
@@ -197,7 +197,7 @@ const menuItems = [
     icon: BarChart,
     path: '/reports',
     name: 'reports',
-    cargos: ['Admin'],
+    cargos: ['Unidade'],
   },
 ]
 

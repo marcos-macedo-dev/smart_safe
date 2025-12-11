@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 
@@ -8,213 +9,170 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Espaço superior flexível
-              const Spacer(flex: 3),
+              const Spacer(flex: 2),
 
-              // Logo e título
+              // Logo e título com Material Design 3
               Column(
                 children: [
-                  // Logo com sombra sutil para profundidade
+                  // Ícone do app com Material Design 3
                   Container(
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF004A77), // Azul petróleo
+                          const Color(0xFF2BBBAD), // Verde-água
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          color: const Color(0xFF004A77).withOpacity(0.3),
                           blurRadius: 20,
                           spreadRadius: 2,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    // child: Image.asset(
-                    //   'assets/ic_launcher.png',
-                    //   height: size.height * 0.22,
-                    // ),
+                    child: const Icon(
+                      LucideIcons.shield,
+                      size: 64,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 32),
 
-                  // Título com gradiente sutil
-                  ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary,
-                        theme.colorScheme.secondary,
-                      ],
-                    ).createShader(bounds),
-                    child: Text(
-                      'Smart Safe',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.onSurface,
-                        letterSpacing: -1.0,
+                  // Título principal com Material Design 3
+                  Text(
+                    'Smart Safe',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                      letterSpacing: -1.2,
+                      fontSize: textScaler.scale(40),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Subtítulo elegante
+                  Text(
+                    'Sua segurança na palma da mão',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: -0.2,
+                      fontSize: textScaler.scale(17),
+                    ),
+                  ),
+                ],
+              ),
+
+              const Spacer(flex: 2),
+
+              // Botões com Material Design 3
+              Column(
+                children: [
+                  // Botão de Login - destaque principal
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: const Color(0xFF004A77),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(
+                        'Entrar',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          fontSize: textScaler.scale(17),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // Subtítulo com opacidade ajustada
-                  Text(
-                    'A segurança na palma da sua mão',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Espaço central flexível
-              const Spacer(flex: 2),
-
-              // Botões com feedback tátil e visual
-              Column(
-                children: [
-                  // Botão de Login
+                  // Botão de Registro - secundário
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            transitionDuration: const Duration(
-                              milliseconds: 300,
-                            ),
-                            pageBuilder: (_, ___, ____) => const LoginScreen(),
-                            transitionsBuilder: (_, animation, __, child) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        elevation: 2,
-                        shadowColor: theme.colorScheme.primary.withOpacity(0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.login_rounded,
-                            size: 22,
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Entrar',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Botão de Registro
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
                     child: OutlinedButton(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          PageRouteBuilder(
-                            transitionDuration: const Duration(
-                              milliseconds: 300,
-                            ),
-                            pageBuilder: (_, ___, ____) =>
-                                const RegisterScreen(),
-                            transitionsBuilder: (_, animation, __, child) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
                           ),
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: BorderSide(
-                          color: theme.colorScheme.primary,
+                          color: const Color(0xFF004A77),
                           width: 1.5,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        foregroundColor: const Color(0xFF004A77),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person_add_alt_1_rounded,
-                            size: 22,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Criar conta',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'Criar conta',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          fontSize: textScaler.scale(17),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
 
-              // Espaço inferior flexível
-              const Spacer(flex: 2),
+              const Spacer(flex: 1),
 
-              // Footer com ícone e texto
+              // Footer discreto com ícone de segurança
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.security_rounded,
-                    size: 18,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    LucideIcons.shieldCheck,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
-                    'Protegido com criptografia de ponta a ponta',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      fontWeight: FontWeight.w500,
+                    'Protegido com criptografia',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.1,
+                      fontSize: textScaler.scale(13),
                     ),
                   ),
                 ],

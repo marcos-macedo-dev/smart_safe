@@ -33,7 +33,7 @@
             }
         }
         .header {
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
             color: white;
             padding: 24px 20px;
             text-align: center;
@@ -56,49 +56,56 @@
         }
         .button {
             display: inline-block;
-            background-color: #2563eb;
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             color: white;
             text-decoration: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
             font-weight: 500;
             margin: 20px 0;
             font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
         }
         .button:hover {
-            background-color: #1d4ed8;
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(37, 99, 235, 0.3);
         }
         .button-container {
             text-align: center;
             margin: 24px 0;
         }
         .footer {
-            background-color: #f4f4f5;
+            background-color: #1e3a8a;
             padding: 20px 24px;
             text-align: center;
             font-size: 13px;
-            color: #71717a;
-            border-top: 1px solid #e4e4e7;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
         }
         @media (prefers-color-scheme: dark) {
             .footer {
-                background-color: #18181b;
-                color: #a1a1aa;
-                border-top: 1px solid #27272a;
+                background-color: #0f172a;
+                color: #94a3b8;
+                border-top: 1px solid #1e293b;
             }
         }
         .footer p {
             margin: 0;
         }
         .details {
-            background-color: #f4f4f5;
-            padding: 16px;
+            background-color: #f8fafc;
+            padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
+            border-left: 4px solid #2563eb;
         }
         @media (prefers-color-scheme: dark) {
             .details {
-                background-color: #27272a;
+                background-color: #0f172a;
             }
         }
         .details p {
@@ -109,20 +116,32 @@
             word-break: break-all;
             color: #2563eb;
             font-size: 14px;
+            background-color: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: block;
+            margin: 8px 0;
         }
         @media (prefers-color-scheme: dark) {
             .link {
                 color: #60a5fa;
+                background-color: #1e293b;
             }
         }
         .note {
             font-size: 14px;
             color: #71717a;
             margin: 20px 0;
+            padding: 12px;
+            background-color: #fef2f2;
+            border-radius: 6px;
+            border-left: 4px solid #dc2626;
         }
         @media (prefers-color-scheme: dark) {
             .note {
                 color: #a1a1aa;
+                background-color: #3f1d1d;
+                border-left: 4px solid #dc2626;
             }
         }
     </style>
@@ -134,27 +153,27 @@
         </div>
         <div class="content">
             <p>Olá {{nome}},</p>
-            
+
             <p>Você foi convidado para se juntar à <strong>{{delegacia_nome}}</strong> como <strong>{{cargo}}</strong> no sistema <strong>Smart Safe</strong>.</p>
-            
+
             <div class="details">
                 <p><strong>Detalhes do Convite:</strong></p>
                 <p>Nome: {{nome}}</p>
                 <p>Cargo: {{cargo}}</p>
                 <p>Delegacia: {{delegacia_nome}}</p>
             </div>
-            
+
             <p>Por favor, clique no botão abaixo para aceitar o convite e definir sua senha:</p>
-            
+
             <div class="button-container">
                 <a href="{{accept_url}}" class="button">Aceitar Convite</a>
             </div>
-            
+
             <p>Se o botão não funcionar, você também pode copiar e colar o seguinte link em seu navegador:</p>
             <p class="link">{{accept_url}}</p>
-            
+
             <p class="note"><strong>Importante:</strong> Este link expirará em 7 dias.</p>
-            
+
             <p class="note">Se você não solicitou este convite, por favor ignore este email.</p>
         </div>
         <div class="footer">

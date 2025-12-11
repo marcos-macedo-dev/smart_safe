@@ -6,7 +6,7 @@ export function useAuth() {
   const userStore = useUserStore()
   
   const isAuthenticated = computed(() => userStore.isAuthenticated)
-  const isAdmin = computed(() => userStore.cargo === 'Admin')
+  const isUnidade = computed(() => userStore.cargo === 'Unidade')
 
   const login = async (email, senha) => {
     const authData = await httpLogin({ email, senha })
@@ -26,7 +26,7 @@ export function useAuth() {
   return {
     user: computed(() => userStore.user),
     isAuthenticated,
-    isAdmin,
+    isUnidade,
     login,
     logout,
     refreshUser

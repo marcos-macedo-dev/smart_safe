@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
 import '../models/user_enums.dart';
@@ -27,7 +28,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _documentoController = TextEditingController();
 
   Cor _cor = Cor.Outra;
-
 
   Genero _genero = Genero.Feminino;
   bool consentimento = false;
@@ -182,6 +182,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     Widget? suffixIcon,
   }) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return TextFormField(
       controller: controller,
@@ -191,32 +193,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
       validator: required
           ? (val) => (val == null || val.isEmpty) ? 'Campo obrigatório' : null
           : null,
-      style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
+      style: theme.textTheme.bodyLarge?.copyWith(
+        fontSize: textScaler.scale(16),
+        color: colorScheme.onSurface,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
-          fontSize: 14,
+        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontSize: textScaler.scale(16),
         ),
-        prefixIcon: Icon(
-          icon,
-          color: theme.colorScheme.primary.withOpacity(0.7),
-          size: 20,
-        ),
+        prefixIcon: Icon(icon, color: colorScheme.onSurfaceVariant, size: 24),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: theme.colorScheme.primary.withOpacity(0.05),
+        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: colorScheme.outline, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.error, width: 1),
+          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -279,29 +288,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: colorScheme.surface.withOpacity(0.9),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_outlined,
-            color: theme.colorScheme.onSurface,
-            size: 20,
-          ),
+          icon: Icon(Icons.arrow_back, color: colorScheme.primary),
           onPressed: _previousStep,
         ),
-        title: Text(
-          'Criar Conta',
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: GestureDetector(
@@ -310,11 +308,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
             key: _formKey,
             child: Column(
               children: [
+                const SizedBox(height: 20),
+                // Título principal
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Criar Conta',
+                        style: theme.textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme.onSurface,
+                          letterSpacing: -0.5,
+                          fontSize: textScaler.scale(34),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Preencha seus dados para continuar',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w400,
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: -0.2,
+                          fontSize: textScaler.scale(17),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
                 // Progress indicator e título do step
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
@@ -323,10 +360,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         borderRadius: BorderRadius.circular(8),
                         child: LinearProgressIndicator(
                           value: (_currentStep + 1) / 3,
-                          backgroundColor: theme.colorScheme.primary
-                              .withOpacity(0.1),
+                          backgroundColor: colorScheme.primary.withOpacity(0.1),
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            theme.colorScheme.primary,
+                            colorScheme.primary,
                           ),
                           minHeight: 6,
                         ),
@@ -339,7 +375,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
+                          color: colorScheme.onSurface,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -350,12 +386,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         'Passo ${_currentStep + 1} de 3',
                         style: TextStyle(
                           fontSize: 14,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
 
                 // Conteúdo dos steps
                 Expanded(
@@ -368,21 +405,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Botão de ação
                 Container(
-                  padding: const EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(24),
                   child: SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _nextStep,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
                         elevation: 0,
                         shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        disabledBackgroundColor: theme.colorScheme.primary
+                        disabledBackgroundColor: colorScheme.primary
                             .withOpacity(0.6),
                       ),
                       child: _isLoading
@@ -392,7 +429,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  theme.colorScheme.onPrimary,
+                                  colorScheme.onPrimary,
                                 ),
                               ),
                             )
@@ -401,10 +438,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               children: [
                                 Icon(
                                   _currentStep == 2
-                                      ? Icons.check
-                                      : Icons.arrow_forward,
+                                      ? LucideIcons.check
+                                      : LucideIcons.arrowRight,
                                   size: 18,
-                                  color: theme.colorScheme.onPrimary,
+                                  color: colorScheme.onPrimary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -414,7 +451,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.onPrimary,
+                                    color: colorScheme.onPrimary,
                                   ),
                                 ),
                               ],
@@ -440,7 +477,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _nomeController,
             label: 'Nome Completo',
-            icon: Icons.person_outline,
+            icon: LucideIcons.user,
           ),
 
           const SizedBox(height: 20),
@@ -448,7 +485,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _emailController,
             label: 'Email',
-            icon: Icons.alternate_email,
+            icon: LucideIcons.mail,
             keyboardType: TextInputType.emailAddress,
           ),
 
@@ -457,11 +494,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _senhaController,
             label: 'Senha',
-            icon: Icons.lock_outline,
+            icon: LucideIcons.lock,
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(
-                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 size: 20,
               ),
@@ -489,7 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _telefoneController,
             label: 'Telefone',
-            icon: Icons.phone_outlined,
+            icon: LucideIcons.phone,
             keyboardType: TextInputType.phone,
             inputFormatters: [_telefoneFormatter],
           ),
@@ -499,7 +536,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _cidadeController,
             label: 'Cidade',
-            icon: Icons.location_city_outlined,
+            icon: LucideIcons.building,
           ),
 
           const SizedBox(height: 20),
@@ -507,7 +544,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _estadoController,
             label: 'Estado (UF)',
-            icon: Icons.map_outlined,
+            icon: LucideIcons.map,
           ),
 
           const SizedBox(height: 20),
@@ -515,7 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _enderecoController,
             label: 'Endereço (Opcional)',
-            icon: Icons.home_outlined,
+            icon: LucideIcons.house,
             required: false,
           ),
 
@@ -535,7 +572,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildDropdown<Genero>(
             value: _genero,
             label: 'Gênero',
-            icon: Icons.female,
+            icon: LucideIcons.users,
             items: Genero.values,
             onChanged: (Genero? val) => setState(() => _genero = val!),
             displayText: (g) =>
@@ -546,7 +583,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildDropdown<Cor>(
             value: _cor,
             label: 'Cor/Raça',
-            icon: Icons.palette_outlined,
+            icon: LucideIcons.palette,
             items: Cor.values,
             onChanged: (Cor? val) => setState(() => _cor = val!),
             displayText: (c) =>
@@ -558,7 +595,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildTextField(
             controller: _documentoController,
             label: 'CPF (Opcional)',
-            icon: Icons.badge_outlined,
+            icon: LucideIcons.creditCard,
             keyboardType: TextInputType.number,
             inputFormatters: [_documentoFormatter],
             required: false,

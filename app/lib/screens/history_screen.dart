@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/sos_record.dart';
 import '../services/api_service.dart';
 import '../services/sos_service.dart';
+import '../utils/app_message.dart';
 import 'sos_detail_screen.dart';
 import 'sos_media_screen.dart';
 
@@ -15,6 +16,10 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen>
     with SingleTickerProviderStateMixin {
+  // Paleta institucional
+  static const Color _violetaEscura = Color(0xFF311756);
+  static const Color _violetaMedia = Color(0xFF401F56);
+
   late final SosService _sosService;
   List<SosRecord> _sosRecords = [];
   List<SosRecord> _filteredRecords = [];
@@ -55,7 +60,10 @@ class _HistoryScreenState extends State<HistoryScreen>
       _fadeController.forward();
     } catch (e) {
       if (mounted) {
-        _showMessage('Erro ao carregar histórico de SOS: $e');
+        _showMessage(
+          'Erro ao carregar histórico de SOS: $e',
+          type: AppMessageType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -79,20 +87,9 @@ class _HistoryScreenState extends State<HistoryScreen>
     });
   }
 
-  void _showMessage(String msg) {
+  void _showMessage(String msg, {AppMessageType type = AppMessageType.info}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    AppMessage.show(context, message: msg, type: type);
   }
 
   String _getStatusText(SosStatus status) {
@@ -122,43 +119,41 @@ class _HistoryScreenState extends State<HistoryScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: colorScheme.surface.withOpacity(0.9),
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
           if (_selectedFilter != null)
             Container(
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withAlpha(15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withAlpha(30),
-                ),
+                color: _violetaEscura,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _violetaEscura, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     _getStatusText(_selectedFilter!),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.primary,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: textScaler.scale(12),
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
+                      letterSpacing: -0.1,
                     ),
                   ),
                   const SizedBox(width: 4),
                   GestureDetector(
                     onTap: () => _setFilter(null),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 14,
-                      color: theme.colorScheme.primary,
-                    ),
+                    child: Icon(Icons.close_rounded, size: 16, color: Colors.white),
                   ),
                 ],
               ),
@@ -197,8 +192,8 @@ class _HistoryScreenState extends State<HistoryScreen>
             icon: Icon(
               Icons.filter_list_rounded,
               color: _selectedFilter != null
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withOpacity(0.7),
+                  ? _violetaEscura
+                  : colorScheme.onSurface.withOpacity(0.7),
               size: 20,
             ),
           ),
@@ -206,18 +201,18 @@ class _HistoryScreenState extends State<HistoryScreen>
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 20),
               // Content
-              Expanded(
-                child: _isLoading
-                    ? _buildLoadingState(theme)
-                    : _filteredRecords.isEmpty
-                    ? _buildEmptyState(theme)
-                    : _buildHistoryList(theme),
-              ),
+              _isLoading
+                  ? _buildLoadingState(theme, colorScheme, textScaler)
+                  : _filteredRecords.isEmpty
+                  ? _buildEmptyState(theme, colorScheme, textScaler)
+                  : _buildHistoryList(theme, colorScheme, textScaler),
             ],
           ),
         ),
@@ -225,22 +220,23 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildLoadingState(ThemeData theme) {
+  Widget _buildLoadingState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: theme.colorScheme.primary,
-            strokeWidth: 2,
-          ),
+          CircularProgressIndicator(color: _violetaEscura, strokeWidth: 2),
           const SizedBox(height: 16),
           Text(
             'Carregando...',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
-              fontWeight: FontWeight.w500,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: textScaler.scale(15),
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -248,7 +244,11 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     final hasFilter = _selectedFilter != null;
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -262,13 +262,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withAlpha(15),
+                  color: _violetaEscura.withOpacity(0.15),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _violetaEscura.withOpacity(0.6),
+                    width: 1,
+                  ),
                 ),
                 child: Icon(
                   hasFilter ? Icons.filter_list_rounded : Icons.history_rounded,
                   size: 40,
-                  color: theme.colorScheme.primary.withOpacity(0.6),
+                  color: _violetaEscura,
                 ),
               ),
               const SizedBox(height: 20),
@@ -276,10 +280,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                 hasFilter
                     ? 'Nenhum SOS encontrado'
                     : 'Nenhum registro encontrado',
-                style: TextStyle(
-                  fontSize: 18,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
+                  color: colorScheme.onSurface,
+                  letterSpacing: -0.3,
+                  fontSize: textScaler.scale(18),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -288,44 +293,48 @@ class _HistoryScreenState extends State<HistoryScreen>
                 hasFilter
                     ? 'Não há SOS com o status selecionado.'
                     : 'Você ainda não criou nenhum SOS.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  fontWeight: FontWeight.w400,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: textScaler.scale(15),
+                  color: colorScheme.onSurfaceVariant,
+                  letterSpacing: -0.2,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                height: 44,
-                child: OutlinedButton.icon(
+                child: FilledButton(
                   onPressed: hasFilter
                       ? () => _setFilter(null)
                       : _loadSosRecords,
-                  icon: Icon(
-                    hasFilter
-                        ? Icons.filter_list_off_rounded
-                        : Icons.refresh_rounded,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  label: Text(
-                    hasFilter ? 'Remover filtro' : 'Atualizar',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: theme.colorScheme.primary.withAlpha(40),
-                      width: 1,
-                    ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    backgroundColor: _violetaEscura,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        hasFilter
+                            ? Icons.filter_list_off_rounded
+                            : Icons.refresh_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        hasFilter ? 'Remover filtro' : 'Atualizar',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: Colors.white,
+                          fontSize: textScaler.scale(16),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -336,57 +345,86 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildHistoryList(ThemeData theme) {
+  Widget _buildHistoryList(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: RefreshIndicator(
         onRefresh: _loadSosRecords,
-        color: theme.colorScheme.primary,
+        color: _violetaEscura,
         child: ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: _filteredRecords.length,
           itemBuilder: (context, index) {
             final record = _filteredRecords[index];
-            return _buildSosCard(record, theme, index);
+            return _buildSosCard(record, theme, colorScheme, textScaler, index);
           },
         ),
       ),
     );
   }
 
-  Widget _buildSosCard(SosRecord record, ThemeData theme, int index) {
+  Widget _buildSosCard(
+    SosRecord record,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+    int index,
+  ) {
     return Container(
       margin: EdgeInsets.only(
         bottom: index == _filteredRecords.length - 1 ? 16 : 12,
       ),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
+        border: Border.all(color: colorScheme.outline, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header do card
-          _buildCardHeader(record, theme),
+          _buildCardHeader(record, theme, colorScheme, textScaler),
           // Divider sutil
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Divider(
-              color: theme.colorScheme.outline.withOpacity(0.1),
+              color: colorScheme.outline.withOpacity(0.2),
               thickness: 1,
+              height: 1,
             ),
           ),
           // Informações do SOS
-          _buildCardInfo(record, theme),
+          _buildCardInfo(record, theme, colorScheme, textScaler),
           // Ações
-          _buildCardActions(record, theme),
+          _buildCardActions(record, theme, colorScheme, textScaler),
         ],
       ),
     );
   }
 
-  Widget _buildCardHeader(SosRecord record, ThemeData theme) {
+  Widget _buildCardHeader(
+    SosRecord record,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
+    final bool highlightStatus = record.status == SosStatus.ativo;
+    final Color chipBackground = highlightStatus
+        ? _violetaEscura
+        : record.statusColor.withOpacity(0.1);
+    final Color chipBorder = highlightStatus
+        ? _violetaEscura
+        : record.statusColor.withOpacity(0.3);
+    final Color chipContentColor = highlightStatus
+        ? Colors.white
+        : record.statusColor;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -397,41 +435,43 @@ class _HistoryScreenState extends State<HistoryScreen>
             children: [
               Text(
                 'SOS #${record.id}',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
+                  color: colorScheme.onSurface,
+                  letterSpacing: -0.2,
+                  fontSize: textScaler.scale(16),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 _timeAgo(record.createdAt),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  fontWeight: FontWeight.w400,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: textScaler.scale(12),
+                  color: colorScheme.onSurfaceVariant,
+                  letterSpacing: -0.1,
                 ),
               ),
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: record.statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: record.statusColor.withOpacity(0.3)),
+              color: chipBackground,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: chipBorder, width: 1),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(record.statusIcon, size: 12, color: record.statusColor),
-                const SizedBox(width: 4),
+                Icon(record.statusIcon, size: 14, color: chipContentColor),
+                const SizedBox(width: 6),
                 Text(
                   record.statusText,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: record.statusColor,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: textScaler.scale(11),
+                    color: chipContentColor,
                     fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ],
@@ -442,7 +482,12 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildCardInfo(SosRecord record, ThemeData theme) {
+  Widget _buildCardInfo(
+    SosRecord record,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -453,6 +498,8 @@ class _HistoryScreenState extends State<HistoryScreen>
             'Criado em',
             record.formattedCreatedAt,
             theme,
+            colorScheme,
+            textScaler,
           ),
           const SizedBox(height: 8),
           // Localização
@@ -461,12 +508,14 @@ class _HistoryScreenState extends State<HistoryScreen>
             'Localização',
             '${record.latitude.toStringAsFixed(4)}, ${record.longitude.toStringAsFixed(4)}',
             theme,
+            colorScheme,
+            textScaler,
           ),
           // Mídia
           if (record.fullCaminhoAudioUrl != null ||
               record.fullCaminhoVideoUrl != null) ...[
             const SizedBox(height: 8),
-            _buildMediaRow(record, theme),
+            _buildMediaRow(record, theme, colorScheme, textScaler),
           ],
           // Encerramento
           if (record.encerrado_em != null) ...[
@@ -476,6 +525,8 @@ class _HistoryScreenState extends State<HistoryScreen>
               'Encerrado em',
               DateFormat('dd/MM/yyyy HH:mm').format(record.encerrado_em!),
               theme,
+              colorScheme,
+              textScaler,
             ),
           ],
           // Última atualização
@@ -486,6 +537,8 @@ class _HistoryScreenState extends State<HistoryScreen>
               'Atualizado em',
               DateFormat('dd/MM/yyyy HH:mm').format(record.updatedAt),
               theme,
+              colorScheme,
+              textScaler,
             ),
           ],
         ],
@@ -493,16 +546,17 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildMediaRow(SosRecord record, ThemeData theme) {
+  Widget _buildMediaRow(
+    SosRecord record,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.perm_media_rounded,
-          size: 14,
-          color: theme.colorScheme.primary.withOpacity(0.7),
-        ),
-        const SizedBox(width: 10),
+        Icon(Icons.perm_media_rounded, size: 16, color: Colors.white),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,7 +565,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 'Mídia',
                 style: TextStyle(
                   fontSize: 11,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: Colors.white.withOpacity(0.85),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -525,19 +579,23 @@ class _HistoryScreenState extends State<HistoryScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: _violetaEscura.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.mic_rounded, size: 10, color: Colors.blue),
+                          Icon(
+                            Icons.mic_rounded,
+                            size: 10,
+                            color: _violetaEscura,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'Áudio',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.blue,
+                              color: _violetaEscura,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -554,7 +612,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: _violetaEscura,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -563,14 +621,14 @@ class _HistoryScreenState extends State<HistoryScreen>
                           Icon(
                             Icons.videocam_rounded,
                             size: 10,
-                            color: Colors.red,
+                            color: Colors.white,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             'Vídeo',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.red,
+                              color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -591,31 +649,34 @@ class _HistoryScreenState extends State<HistoryScreen>
     String label,
     String value,
     ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
   ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: theme.colorScheme.primary.withOpacity(0.7)),
-        const SizedBox(width: 10),
+        Icon(icon, size: 16, color: Colors.white),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  fontWeight: FontWeight.w500,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: textScaler.scale(12),
+                  color: Colors.white.withOpacity(0.8),
+                  letterSpacing: -0.1,
                 ),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurface,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: textScaler.scale(14),
+                  color: Colors.white,
                   fontWeight: FontWeight.w500,
+                  letterSpacing: -0.1,
                 ),
               ),
             ],
@@ -625,7 +686,12 @@ class _HistoryScreenState extends State<HistoryScreen>
     );
   }
 
-  Widget _buildCardActions(SosRecord record, ThemeData theme) {
+  Widget _buildCardActions(
+    SosRecord record,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
     final hasMedia =
         (record.fullCaminhoAudioUrl != null &&
             record.fullCaminhoAudioUrl!.isNotEmpty) ||
@@ -637,27 +703,49 @@ class _HistoryScreenState extends State<HistoryScreen>
         children: [
           // Botão Ver Mapa
           Expanded(
-            child: _buildActionButton(
-              icon: Icons.map_rounded,
-              label: 'Ver no mapa',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SosDetailScreen(
-                      latitude: record.latitude,
-                      longitude: record.longitude,
+            child: SizedBox(
+              height: 44,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SosDetailScreen(
+                        latitude: record.latitude,
+                        longitude: record.longitude,
+                      ),
                     ),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: _violetaEscura,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
-              isPrimary: true,
-              theme: theme,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map_rounded, size: 18, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Ver no mapa',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                        fontSize: textScaler.scale(15),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           // Botão Ver Mídia (se disponível)
           if (hasMedia) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildActionButton(
                 icon: Icons.play_circle_rounded,
@@ -672,6 +760,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                 },
                 isPrimary: false,
                 theme: theme,
+                colorScheme: colorScheme,
+                textScaler: textScaler,
               ),
             ),
           ],
@@ -686,49 +776,62 @@ class _HistoryScreenState extends State<HistoryScreen>
     required VoidCallback onPressed,
     required bool isPrimary,
     required ThemeData theme,
+    required ColorScheme colorScheme,
+    required TextScaler textScaler,
   }) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: isPrimary
-          ? ElevatedButton.icon(
+          ? FilledButton(
               onPressed: onPressed,
-              icon: Icon(icon, size: 16),
-              label: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                elevation: 0,
+              style: FilledButton.styleFrom(
+                backgroundColor: _violetaEscura,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: -0.2,
+                      fontSize: textScaler.scale(15),
+                    ),
+                  ),
+                ],
               ),
             )
-          : OutlinedButton.icon(
+          : OutlinedButton(
               onPressed: onPressed,
-              icon: Icon(icon, size: 16),
-              label: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
-                  width: 1,
-                ),
-                foregroundColor: theme.colorScheme.primary,
+                side: BorderSide(color: colorScheme.outline, width: 1),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 18, color: colorScheme.onSurface),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      letterSpacing: -0.2,
+                      fontSize: textScaler.scale(15),
+                    ),
+                  ),
+                ],
               ),
             ),
     );

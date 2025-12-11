@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
   const PasswordResetSuccessScreen({super.key});
@@ -24,7 +25,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.check_circle_outline,
+                  LucideIcons.check,
                   size: 80,
                   color: theme.colorScheme.primary,
                 ),
@@ -61,7 +62,11 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     // Navegar de volta para a tela de login
-                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/login',
+                      (route) => false,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,

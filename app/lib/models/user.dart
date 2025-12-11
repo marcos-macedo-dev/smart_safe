@@ -39,32 +39,38 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      nome_completo: json['nome_completo'],
-      email: json['email'],
-      senha: json['senha'],
-      telefone: json['telefone'],
-      cpf: json['cpf'],
+      id: json['id'] as int? ?? 0, // Trata null como 0
+      nome_completo: json['nome_completo'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      senha: json['senha'] as String?,
+      telefone: json['telefone'] as String?,
+      cpf: json['cpf'] as String?,
       data_nascimento: json['data_nascimento'] != null
           ? DateTime.parse(json['data_nascimento']).toLocal()
           : null,
-      genero: json['genero'] != null 
+      genero: json['genero'] != null
           ? Genero.values.firstWhere(
               (e) => e.toString().split('.').last == json['genero'],
-              orElse: () => Genero.Feminino)
+              orElse: () => Genero.Feminino,
+            )
           : null,
       cor: json['cor'] != null
           ? Cor.values.firstWhere(
               (e) => e.toString().split('.').last == json['cor'],
-              orElse: () => Cor.Outra)
+              orElse: () => Cor.Outra,
+            )
           : null,
-      cidade: json['cidade'],
-      estado: json['estado'],
-      endereco: json['endereco'],
-      documento_identificacao: json['documento_identificacao'],
-      consentimento: json['consentimento'],
-      createdAt: DateTime.parse(json['createdAt']).toLocal(),
-      updatedAt: DateTime.parse(json['updatedAt']).toLocal(),
+      cidade: json['cidade'] as String?,
+      estado: json['estado'] as String?,
+      endereco: json['endereco'] as String?,
+      documento_identificacao: json['documento_identificacao'] as String?,
+      consentimento: json['consentimento'] as bool?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt']).toLocal()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt']).toLocal()
+          : DateTime.now(),
     );
   }
 
@@ -138,7 +144,8 @@ class User {
       cidade: cidade ?? this.cidade,
       estado: estado ?? this.estado,
       endereco: endereco ?? this.endereco,
-      documento_identificacao: documento_identificacao ?? this.documento_identificacao,
+      documento_identificacao:
+          documento_identificacao ?? this.documento_identificacao,
       consentimento: consentimento ?? this.consentimento,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

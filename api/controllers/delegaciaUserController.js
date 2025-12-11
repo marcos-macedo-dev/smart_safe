@@ -1,6 +1,6 @@
 const { Autoridade, Delegacia } = require('../models');
 
-// Listar todos os usuários da delegacia do administrador
+// Listar todos os usuários da delegacia da unidade
 exports.getUsersByDelegacia = async (req, res) => {
   try {
     const delegacia_id = req.user.delegacia_id;
@@ -62,9 +62,9 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ error: 'Usuário não encontrado nesta delegacia.' });
     }
     
-    // Não permitir que um usuário altere seu próprio cargo de Admin para Operador
-    if (usuario.id === req.user.id && usuario.cargo === 'Admin' && cargo === 'Operador') {
-      return res.status(403).json({ error: 'Você não pode remover seus próprios privilégios de administrador.' });
+    // Não permitir que um usuário altere seu próprio cargo de Unidade para Agente
+    if (usuario.id === req.user.id && usuario.cargo === 'Unidade' && cargo === 'Agente') {
+      return res.status(403).json({ error: 'Você não pode remover seus próprios privilégios de unidade.' });
     }
     
     // Atualizar campos

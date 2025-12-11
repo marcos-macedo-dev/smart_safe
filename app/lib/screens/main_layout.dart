@@ -1,6 +1,6 @@
 import 'package:app/screens/emergency_contacts_screen.dart';
+import 'package:app/screens/sos_screen.dart';
 import 'package:flutter/material.dart';
-import 'sos_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 import 'delegacia_screen.dart';
@@ -8,6 +8,9 @@ import 'profile_screen.dart';
 import '../services/api_service.dart';
 import '../services/biometric_auth_service.dart';
 import '../models/user.dart';
+
+const Color _drawerAccent = Color(0xFF311756);
+const Color _drawerAccentText = Color(0xFFFFFFFF);
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -250,12 +253,12 @@ class _MainLayoutState extends State<MainLayout> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      color: _drawerAccent.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.shield_rounded,
-                      color: theme.colorScheme.primary,
+                      color: _drawerAccent,
                       size: 20,
                     ),
                   ),
@@ -384,7 +387,7 @@ class _MainLayoutState extends State<MainLayout> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
+              color: _drawerAccentText,
               letterSpacing: 0.5,
             ),
           ),
@@ -396,33 +399,39 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _buildMenuItem(_MenuItem item, ThemeData theme) {
     final isSelected = _title == item.title;
+    final Color iconColor = isSelected
+        ? _drawerAccentText
+        : theme.colorScheme.onSurface.withOpacity(item.isSpecial ? 0.9 : 0.7);
+    final Color textColor = isSelected
+        ? _drawerAccentText
+        : theme.colorScheme.onSurface.withOpacity(item.isSpecial ? 0.9 : 0.8);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? _drawerAccent : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         dense: true,
         leading: Icon(
           isSelected ? item.activeIcon : item.icon,
           size: 20,
-          color: isSelected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurface.withOpacity(0.7),
+          color: iconColor,
         ),
         title: Text(
           item.title,
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurface.withOpacity(0.8),
+            color: textColor,
           ),
         ),
         selected: isSelected,
-        selectedColor: theme.colorScheme.primary,
-        selectedTileColor: theme.colorScheme.primary.withOpacity(0.06),
+        selectedColor: _drawerAccentText,
+        selectedTileColor: Colors.transparent,
         onTap:
             item.onTap ??
             () {

@@ -2,11 +2,11 @@
 const bcrypt = require('bcryptjs');
 const { Autoridade, Delegacia } = require('../models');
 
-// Apenas Admins podem criar novas autoridades para sua própria delegacia
+// Apenas Unidades podem criar novas autoridades para sua própria delegacia
 exports.createAutoridade = async (req, res) => {
   try {
     const { nome, email, senha, cargo } = req.body;
-    const delegacia_id = req.user.delegacia_id; // Pega o ID da delegacia do token do admin
+    const delegacia_id = req.user.delegacia_id; // Pega o ID da delegacia do token da unidade
 
     // Criptografa a senha
     const hashedPassword = await bcrypt.hash(senha, 10);
@@ -86,7 +86,7 @@ exports.updateLoggedInAutoridade = async (req, res) => {
   }
 };
 
-// Apenas Admins podem listar autoridades da sua delegacia
+// Apenas Unidades podem listar autoridades da sua delegacia
 exports.getAutoridadesByDelegacia = async (req, res) => {
   try {
     const delegacia_id = req.user.delegacia_id;
@@ -101,7 +101,7 @@ exports.getAutoridadesByDelegacia = async (req, res) => {
   }
 };
 
-// Apenas Admins podem atualizar uma autoridade da sua delegacia
+// Apenas Unidades podem atualizar uma autoridade da sua delegacia
 exports.updateAutoridade = async (req, res) => {
   try {
     const { id } = req.params;
@@ -130,7 +130,7 @@ exports.updateAutoridade = async (req, res) => {
   }
 };
 
-// Apenas Admins podem deletar uma autoridade da sua delegacia
+// Apenas Unidades podem deletar uma autoridade da sua delegacia
 exports.deleteAutoridade = async (req, res) => {
   try {
     const { id } = req.params;

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 
+const Color _profileVioletaEscura = Color(0xFF311756);
+const Color _profileVioletaMedia = Color(0xFF401F56);
+
 class ProfileScreen extends StatefulWidget {
   final User? user;
   final bool useScaffold; // Novo parâmetro para controlar se usa Scaffold
@@ -36,6 +39,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _isLoading = false);
       return;
     }
+
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
     try {
       print('ProfileScreen: Tentando carregar perfil via API...');
@@ -43,24 +49,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print(
         'ProfileScreen: Perfil carregado com sucesso: ${user?.nome_completo}',
       );
-      setState(() {
-        _user = user;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('ProfileScreen: Erro ao carregar perfil: $e');
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
+
         // Check if it's an authentication error
         if (e.toString().contains('401') ||
-            e.toString().contains('Unauthorized')) {
+            e.toString().contains('Unauthorized') ||
+            e.toString().contains('Token')) {
           print(
             'ProfileScreen: Erro de autenticação detectado, mostrando diálogo',
           );
           _showAuthErrorDialog();
         } else {
           print('ProfileScreen: Erro genérico, mostrando mensagem');
-          _showMessage('Erro ao carregar perfil');
+          _showMessage('Erro ao carregar perfil. Toque para tentar novamente.');
         }
       }
     }
@@ -78,8 +88,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Sair'),
           ),
         ],
@@ -90,9 +103,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         await ApiService.logout();
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/login');
+          // Navigate to login screen
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/login', (route) => false);
         }
       } catch (e) {
+        print('Erro ao fazer logout: $e');
         if (mounted) {
           _showMessage('Erro ao fazer logout');
         }
@@ -102,10 +119,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    try {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _profileVioletaEscura,
+          content: Text(message, style: const TextStyle(color: Colors.white)),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Erro ao mostrar mensagem: $e');
+    }
   }
 
   void _showAuthErrorDialog() {
@@ -118,12 +147,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'Sua sessão expirou. Você precisa fazer login novamente.',
         ),
         actions: [
-          TextButton(
+          FilledButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
               ApiService.logout(); // Clear tokens
-              Navigator.pushReplacementNamed(context, '/login'); // Go to login
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
             },
+            style: FilledButton.styleFrom(
+              backgroundColor: _profileVioletaEscura,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Fazer login'),
           ),
         ],
@@ -181,10 +216,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     Widget content = _isLoading
         ? Center(
-            child: CircularProgressIndicator(color: theme.colorScheme.primary),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: _profileVioletaEscura,
+            ),
           )
         : _user == null
         ? Center(
@@ -194,14 +234,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Icon(
                   Icons.error_outline,
                   size: 64,
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  color: colorScheme.onSurface.withOpacity(0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Erro ao carregar perfil',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _fetchProfileIfNeeded,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tentar novamente'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _profileVioletaEscura,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
@@ -209,22 +258,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           )
         : RefreshIndicator(
             onRefresh: _fetchProfileIfNeeded,
-            color: theme.colorScheme.primary,
+            color: _profileVioletaEscura,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 20),
                   // Avatar e nome
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        width: 1,
+                      color: colorScheme.surfaceContainerHighest.withOpacity(
+                        0.3,
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colorScheme.outline, width: 1),
                     ),
                     child: Column(
                       children: [
@@ -236,16 +287,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.primary.withOpacity(0.8),
+                                _profileVioletaMedia,
+                                _profileVioletaEscura,
                               ],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: theme.colorScheme.primary.withOpacity(
-                                  0.3,
-                                ),
+                                color: _profileVioletaEscura.withOpacity(0.35),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -256,8 +305,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _user!.nome_completo.isNotEmpty
                                   ? _user!.nome_completo[0].toUpperCase()
                                   : '?',
-                              style: const TextStyle(
-                                fontSize: 28,
+                              style: TextStyle(
+                                fontSize: textScaler.scale(28),
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                               ),
@@ -267,48 +316,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 16),
                         Text(
                           _user!.nome_completo,
-                          style: TextStyle(
-                            fontSize: 20,
+                          style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
+                            color: colorScheme.onSurface,
+                            letterSpacing: -0.3,
+                            fontSize: textScaler.scale(20),
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           _user!.email,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            letterSpacing: -0.1,
+                            fontSize: textScaler.scale(14),
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   // Informações do perfil
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        width: 1,
+                      color: colorScheme.surfaceContainerHighest.withOpacity(
+                        0.3,
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colorScheme.outline, width: 1),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Informações Pessoais',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
+                            color: colorScheme.onSurface,
+                            letterSpacing: -0.2,
+                            fontSize: textScaler.scale(16),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -323,88 +373,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Botões de ação
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        width: 1,
+                  // Botões de ação (estilo da tela de login)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _showEditProfileBottomSheet,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: _profileVioletaEscura,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.edit, size: 20, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Editar Perfil',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                              fontSize: textScaler.scale(17),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _showEditProfileBottomSheet,
-                            icon: const Icon(Icons.edit),
-                            label: const Text('Editar Perfil'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _showChangePasswordBottomSheet,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: const BorderSide(
+                          color: _profileVioletaEscura,
+                          width: 1,
+                        ),
+                        backgroundColor: _profileVioletaEscura,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.lock_outline,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Alterar Senha',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
+                              fontSize: textScaler.scale(17),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _showChangePasswordBottomSheet,
-                            icon: const Icon(Icons.lock_outline),
-                            label: const Text('Alterar Senha'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: 1,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _logout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.error,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.logout, size: 18),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Sair',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _logout,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: colorScheme.error, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.logout,
+                            size: 20,
+                            color: colorScheme.error,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sair',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.error,
+                              letterSpacing: -0.2,
+                              fontSize: textScaler.scale(17),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -416,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? PopScope(
             canPop: true,
             child: Scaffold(
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.02),
+              backgroundColor: colorScheme.surface,
               resizeToAvoidBottomInset: true,
               appBar: AppBar(
                 leading: IconButton(
@@ -609,6 +680,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                backgroundColor: _profileVioletaEscura,
+                foregroundColor: Colors.white,
               ),
               child: _isSaving
                   ? const SizedBox(
@@ -640,11 +713,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
+        prefixIcon: Icon(icon, color: _profileVioletaEscura),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderSide: const BorderSide(color: _profileVioletaEscura, width: 2),
         ),
       ),
     );
@@ -795,6 +868,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                backgroundColor: _profileVioletaEscura,
+                foregroundColor: Colors.white,
               ),
               child: _isSaving
                   ? const SizedBox(
@@ -826,15 +901,18 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       obscureText: obscureText,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: const Icon(Icons.lock),
+        prefixIcon: const Icon(Icons.lock, color: _profileVioletaEscura),
         suffixIcon: IconButton(
-          icon: Icon(obscureText ? Icons.visibility : Icons.visibility_off),
+          icon: Icon(
+            obscureText ? Icons.visibility : Icons.visibility_off,
+            color: _profileVioletaEscura,
+          ),
           onPressed: onToggleVisibility,
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderSide: const BorderSide(color: _profileVioletaEscura, width: 2),
         ),
       ),
     );

@@ -2,7 +2,7 @@
   <div class="container mx-auto py-5">
     <!-- Cabeçalho -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-      <h1 class="text-xl font-bold text-zinc-900 dark:text-white">Gerenciamento de Operadores</h1>
+      <h1 class="text-xl font-bold text-zinc-900 dark:text-white">Gerenciamento de Autoridades</h1>
 
       <!-- Filtros e ações -->
       <div class="flex flex-wrap gap-2 w-full md:w-auto">
@@ -24,8 +24,8 @@
           class="px-3 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-zinc-700 dark:text-white text-sm"
         >
           <option value="">Todos os cargos</option>
-          <option value="Operador">Operador</option>
-          <option value="Admin">Admin</option>
+          <option value="Agente">Agente</option>
+          <option value="Unidade">Unidade</option>
         </select>
 
         <!-- Campo de busca -->
@@ -148,9 +148,9 @@
               <span
                 :class="{
                   'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100':
-                    user.cargo === 'Admin',
+                    user.cargo === 'Unidade',
                   'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100':
-                    user.cargo === 'Operador',
+                    user.cargo === 'Agente',
                 }"
                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
               >
@@ -252,8 +252,8 @@
             </h3>
             <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {{ editingUser
-                ? 'Atualize os dados do operador selecionado. As alterações são sincronizadas imediatamente.'
-                : 'Informe os dados básicos para enviar o convite de acesso ao novo operador.'
+                ? 'Atualize os dados da autoridade selecionada. As alterações são sincronizadas imediatamente.'
+                : 'Informe os dados básicos para enviar o convite de acesso à nova autoridade.'
               }}
             </p>
           </div>
@@ -290,7 +290,7 @@
                 {{ formErrors.nome }}
               </p>
               <p v-else class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Informe como o nome deve aparecer para os demais operadores.
+                Informe como o nome deve aparecer para as demais autoridades.
               </p>
             </div>
             <div>
@@ -356,8 +356,8 @@
               <p class="font-medium">Como funciona?</p>
               <p class="mt-1 leading-relaxed">
                 {{ editingUser
-                  ? 'As alterações entram em vigor imediatamente para este operador.'
-                  : 'Enviaremos um email com link de ativação. O operador só terá acesso após aceitar o convite.'
+                  ? 'As alterações entram em vigor imediatamente para esta autoridade.'
+                  : 'Enviaremos um email com link de ativação. A autoridade só terá acesso após aceitar o convite.'
                 }}
               </p>
             </div>
@@ -404,21 +404,21 @@ const editingUser = ref(false)
 const userForm = ref({
   nome: '',
   email: '',
-  cargo: 'Operador',
+  cargo: 'Agente',
 })
 const saving = ref(false)
 const formErrors = ref({})
 
 const roleOptions = [
   {
-    label: 'Operador',
-    value: 'Operador',
+    label: 'Agente',
+    value: 'Agente',
     description: 'Acesso às ocorrências da delegacia',
   },
   {
-    label: 'Admin',
-    value: 'Admin',
-    description: 'Gerencia operadores e configurações',
+    label: 'Unidade',
+    value: 'Unidade',
+    description: 'Gerencia autoridades e configurações',
   },
 ]
 
@@ -517,7 +517,7 @@ const getStatusClass = (ativo) => {
 
 const openAddUserModal = () => {
   editingUser.value = false
-  userForm.value = { nome: '', email: '', cargo: 'Operador' }
+  userForm.value = { nome: '', email: '', cargo: 'Agente' }
   formErrors.value = {}
   saving.value = false
   showUserModal.value = true
@@ -572,18 +572,18 @@ const validateUserForm = () => {
 const openDeleteUserModal = async (user) => {
   const confirmDialog = useConfirmDialog()
   const confirm = await confirmDialog.confirm({
-    titulo: 'Deletar Operador',
-    mensagem: `Tem certeza que deseja deletar o operador "${user.nome}"? Esta ação não pode ser desfeita.`
+    titulo: 'Deletar Autoridade',
+    mensagem: `Tem certeza que deseja deletar a autoridade "${user.nome}"? Esta ação não pode ser desfeita.`
   })
 
   if (confirm) {
     try {
       await deleteAutoridade(user.id)
-      toast.success('Operador deletado com sucesso!')
+      toast.success('Autoridade deletada com sucesso!')
       loadUsers() // Atualizar lista
     } catch (error) {
       console.error('Erro ao deletar usuário:', error)
-      toast.error('Erro ao deletar operador')
+      toast.error('Erro ao deletar autoridade')
     }
   }
 }
@@ -600,7 +600,7 @@ const saveUser = async () => {
       // Enviar apenas os campos que podem ser atualizados
       const { nome, email, cargo } = userForm.value
       await updateDelegaciaUser(userForm.value.id, { nome, email, cargo })
-      toast.success('Operador atualizado com sucesso!')
+      toast.success('Autoridade atualizada com sucesso!')
     } else {
       // Adicionar novo usuário (enviar convite)
       await sendInvite({
@@ -613,7 +613,7 @@ const saveUser = async () => {
     loadUsers() // Atualizar lista
   } catch (error) {
     console.error('Erro ao salvar usuário:', error)
-    toast.error('Erro ao salvar operador')
+    toast.error('Erro ao salvar autoridade')
   } finally {
     saving.value = false
   }
@@ -622,22 +622,22 @@ const saveUser = async () => {
 const deactivateUser = async (userId) => {
   try {
     await deactivateDelegaciaUser(userId)
-    toast.success('Operador desativado com sucesso!')
+    toast.success('Autoridade desativada com sucesso!')
     loadUsers() // Atualizar lista
   } catch (error) {
     console.error('Erro ao desativar usuário:', error)
-    toast.error('Erro ao desativar operador')
+    toast.error('Erro ao desativar autoridade')
   }
 }
 
 const reactivateUser = async (userId) => {
   try {
     await reactivateDelegaciaUser(userId)
-    toast.success('Operador reativado com sucesso!')
+    toast.success('Autoridade reativada com sucesso!')
     loadUsers() // Atualizar lista
   } catch (error) {
     console.error('Erro ao reativar usuário:', error)
-    toast.error('Erro ao reativar operador')
+    toast.error('Erro ao reativar autoridade')
   }
 }
 
