@@ -21,19 +21,37 @@ class _OfflineIndicatorState extends State<OfflineIndicator> {
     super.initState();
     _checkConnectivity();
     _loadPendingItems();
+
+    // Listener otimizado de conectividade
     Connectivity().onConnectivityChanged.listen((results) {
       if (mounted) {
         final wasOnline = _isOnline;
+        final newOnline =
+            results.contains(ConnectivityResult.mobile) ||
+            results.contains(ConnectivityResult.wifi);
+
         setState(() {
-          _isOnline =
-              results.contains(ConnectivityResult.mobile) ||
-              results.contains(ConnectivityResult.wifi);
+          _isOnline = newOnline;
         });
-        // Se voltou online, recarregar itens pendentes
-        if (!wasOnline && _isOnline) {
-          _loadPendingItems();
+
+        // Se voltou online, recarregar itens pendentes rapidamente
+        if (!wasOnline && newOnline) {
+          // Pequeno delay para dar tempo da sincronização processar
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _loadPendingItems();
+          });
         }
       }
+    });
+
+    // Recarregar itens pendentes periodicamente (a cada 10 segundos)
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 10));
+      if (mounted) {
+        _loadPendingItems();
+        return true;
+      }
+      return false;
     });
   }
 

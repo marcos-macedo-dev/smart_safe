@@ -1,6 +1,8 @@
 import 'package:app/screens/root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/user.dart';
 import '../services/api_service.dart';
@@ -30,20 +32,6 @@ class _LoginScreenState extends State<LoginScreen>
   String? _emailError;
   String? _passwordError;
 
-  late final AnimationController _animController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 350),
-  )..forward();
-
-  late final Animation<double> _fadeAnimation = CurvedAnimation(
-    parent: _animController,
-    curve: Curves.easeOut,
-  );
-  late final Animation<Offset> _slideAnimation = Tween<Offset>(
-    begin: const Offset(0, 0.05),
-    end: Offset.zero,
-  ).animate(_fadeAnimation);
-
   @override
   void initState() {
     super.initState();
@@ -56,7 +44,6 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
-    _animController.dispose();
     super.dispose();
   }
 
@@ -153,39 +140,18 @@ class _LoginScreenState extends State<LoginScreen>
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Login rápido',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.3,
-          ),
-        ),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            'Deseja habilitar login com Face ID/Touch ID para futuros acessos?',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontSize: 13, letterSpacing: -0.1),
-          ),
+        title: const Text('Login rápido'),
+        content: const Text(
+          'Deseja habilitar login com Face ID/Touch ID para futuros acessos?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Agora não',
-              style: TextStyle(fontWeight: FontWeight.w400),
-            ),
+            child: const Text('Agora não'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 144, 179, 201),
-            ),
-            child: const Text(
-              'Habilitar',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            child: const Text('Habilitar'),
           ),
         ],
       ),
@@ -209,366 +175,278 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _navigateToWelcome() {
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-    );
-  }
-
-  Future<bool> _handleBackNavigation() async {
-    if (Navigator.of(context).canPop()) {
-      return true;
-    }
-    _navigateToWelcome();
-    return false;
-  }
-
   void _showMessage(String message) {
     if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Aviso',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
-              ),
-        ),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 13,
-                  letterSpacing: -0.1,
-                ),
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF004A77),
-            ),
-            child: const Text(
-              'OK',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textScaler = MediaQuery.textScalerOf(context);
+    final isDark = theme.brightness == Brightness.dark;
+    const accent = Color(0xFF7C5CC3);
+    final cardColor = colorScheme.surface;
+    final textPrimary = colorScheme.onSurface;
+    final textMuted = colorScheme.onSurfaceVariant;
+    final shadow = Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        await _handleBackNavigation();
-      },
-      child: Scaffold(
-        backgroundColor: colorScheme.surface,
-        appBar: AppBar(
-          backgroundColor: colorScheme.surface.withOpacity(0.9),
-          elevation: 0,
-          leading: IconButton(
-            onPressed: () async {
-              final canLeave = await _handleBackNavigation();
-              if (canLeave && mounted) Navigator.of(context).pop();
-            },
-            icon: Icon(Icons.arrow_back, color: colorScheme.primary),
+    return Scaffold(
+      backgroundColor: accent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const WelcomeScreen()),
           ),
         ),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 20),
-                    // Título principal com Material Design 3
-                    Text(
-                      'Bem-vinda',
-                      style: theme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
-                        letterSpacing: -0.5,
-                        fontSize: textScaler.scale(34),
-                      ),
+      ),
+      body: Stack(
+        children: [
+          // Header
+          SafeArea(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  Text(
+                    'Bem-vindo\nde volta',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Acesse sua conta com segurança',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: colorScheme.onSurfaceVariant,
-                        letterSpacing: -0.2,
-                        fontSize: textScaler.scale(17),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    // Campo de email com Material Design 3
-                    _buildMaterialField(
-                      controller: _emailController,
-                      focusNode: _emailFocus,
-                      label: 'Email',
-                      keyboardType: TextInputType.emailAddress,
-                      onChanged: _validateEmail,
-                      textInputAction: TextInputAction.next,
-                      onSubmitted: (_) =>
-                          FocusScope.of(context).requestFocus(_passwordFocus),
-                      errorText: _emailError,
-                      icon: Icons.email_outlined,
-                    ),
-                    const SizedBox(height: 16),
-                    // Campo de senha com Material Design 3
-                    _buildMaterialField(
-                      controller: _passwordController,
-                      focusNode: _passwordFocus,
-                      label: 'Senha',
-                      obscureText: true,
-                      onChanged: _validatePassword,
-                      onSubmitted: (_) => _login(),
-                      errorText: _passwordError,
-                      icon: Icons.lock_outline,
-                    ),
-                    const SizedBox(height: 16),
-                    // Link "Esqueceu a senha?" discreto
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/forgot-password'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Esqueceu a senha?',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.primary,
-                            letterSpacing: -0.2,
-                            fontSize: textScaler.scale(15),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Botão de login principal - destaque suave
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _isLoading ? null : _login,
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          backgroundColor: const Color(0xFF004A77),
-                          disabledBackgroundColor: colorScheme.onSurface
-                              .withOpacity(0.12),
-                        ),
-                        child: _isLoading
-                            ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    colorScheme.onPrimary,
-                                  ),
-                                ),
-                              )
-                            : Text(
-                                'Entrar',
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.2,
-                                  fontSize: textScaler.scale(17),
-                                ),
-                              ),
-                      ),
-                    ),
-                    if (_showBiometricOption) ...[
-                      const SizedBox(height: 24),
-                      _buildDivider(context),
-                      const SizedBox(height: 24),
-                      // Botão de biometria minimalista
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _isAuthenticating
-                              ? null
-                              : _authenticateWithBiometrics,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: BorderSide(
-                              color: colorScheme.outline,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (_isAuthenticating)
-                                SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      colorScheme.onSurface,
-                                    ),
-                                  ),
-                                )
-                              else
-                                Icon(
-                                  Icons.fingerprint,
-                                  color: colorScheme.onSurface,
-                                  size: 20,
-                                ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Usar biometria',
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.onSurface,
-                                  letterSpacing: -0.2,
-                                  fontSize: textScaler.scale(17),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  ).animate().fade().slideX(begin: -0.2, end: 0),
+                ],
               ),
             ),
           ),
-        ),
+
+          // Sheet
+          Align(
+            alignment: Alignment.bottomCenter,
+            child:
+                Container(
+                  height:
+                      MediaQuery.sizeOf(context).height *
+                      0.75, // Altura fixa confortável
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      topRight: Radius.circular(32),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: shadow,
+                        blurRadius: 24,
+                        offset: const Offset(0, -8),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      32,
+                      40,
+                      32,
+                      24 + bottomPadding,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Form Fields
+                        _buildTextField(
+                              controller: _emailController,
+                              focusNode: _emailFocus,
+                              label: 'E-mail',
+                              icon: LucideIcons.mail,
+                              keyboardType: TextInputType.emailAddress,
+                              onChanged: _validateEmail,
+                              errorText: _emailError,
+                              onSubmitted: (_) => FocusScope.of(
+                                context,
+                              ).requestFocus(_passwordFocus),
+                            )
+                            .animate()
+                            .fade(delay: 200.ms)
+                            .slideY(begin: 0.2, end: 0),
+
+                        const SizedBox(height: 20),
+
+                        _buildTextField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              label: 'Senha',
+                              icon: LucideIcons.lock,
+                              obscureText: true,
+                              onChanged: _validatePassword,
+                              errorText: _passwordError,
+                              onSubmitted: (_) => _login(),
+                            )
+                            .animate()
+                            .fade(delay: 300.ms)
+                            .slideY(begin: 0.2, end: 0),
+
+                        const SizedBox(height: 12),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              '/forgot-password',
+                            ),
+                            child: Text(
+                              'Esqueci minha senha',
+                              style: TextStyle(
+                                color: accent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Login Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton(
+                            onPressed: _isLoading ? null : _login,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: accent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    'ENTRAR',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                          ),
+                        ).animate().fade(delay: 400.ms).scale(),
+                        if (_showBiometricOption) ...[
+                          const SizedBox(height: 24),
+                          Center(
+                            child: IconButton(
+                              onPressed: _isAuthenticating
+                                  ? null
+                                  : _authenticateWithBiometrics,
+                              icon: const Icon(
+                                Icons.fingerprint,
+                                size: 48,
+                                color: accent,
+                              ),
+                              tooltip: 'Entrar com biometria',
+                            ),
+                          ).animate().fade(delay: 500.ms),
+                          Center(
+                            child: Text(
+                              'Toque para usar biometria',
+                              style: TextStyle(color: textMuted, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ).animate().slideY(
+                  begin: 1.0,
+                  end: 0,
+                  duration: 500.ms,
+                  curve: Curves.easeOutQuart,
+                ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMaterialField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required FocusNode focusNode,
     required String label,
-    required ValueChanged<String> onChanged,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    TextInputAction? textInputAction,
     bool obscureText = false,
+    ValueChanged<String>? onChanged,
     ValueChanged<String>? onSubmitted,
     String? errorText,
-    IconData? icon,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textScaler = MediaQuery.textScalerOf(context);
-
-    return TextFormField(
+    const accent = Color(0xFF7C5CC3);
+    final textPrimary = colorScheme.onSurface;
+    final textMuted = colorScheme.onSurfaceVariant;
+    final fill = colorScheme.surface;
+    return TextField(
       controller: controller,
       focusNode: focusNode,
       keyboardType: keyboardType,
-      textInputAction: textInputAction,
       obscureText: obscureText,
       onChanged: onChanged,
-      onFieldSubmitted: onSubmitted,
-      style: theme.textTheme.bodyLarge?.copyWith(
-        fontSize: textScaler.scale(16),
-        color: colorScheme.onSurface,
-      ),
+      onSubmitted: onSubmitted,
+      style: TextStyle(color: textPrimary), // Texto digitado adaptado ao tema
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontSize: textScaler.scale(16),
-        ),
-        prefixIcon: icon != null
-            ? Icon(icon, color: colorScheme.onSurfaceVariant, size: 24)
-            : null,
+        labelStyle: TextStyle(color: textMuted), // Cor do label (placeholder)
+        prefixIcon: Icon(icon, color: textMuted), // Cor do ícone
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        fillColor: fill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline, width: 1),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline, width: 1),
+          borderSide: BorderSide(color: textMuted.withOpacity(0.2), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: const Color(0xFF004A77), width: 2),
+          borderSide: const BorderSide(color: accent, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.error, width: 2),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 2),
         ),
         errorText: errorText,
-        errorStyle: theme.textTheme.bodySmall?.copyWith(
-          color: colorScheme.error,
-          fontSize: textScaler.scale(12),
-        ),
+        errorStyle: TextStyle(color: Colors.red.shade700, fontSize: 12),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
           vertical: 16,
+          horizontal: 20,
         ),
       ),
-    );
-  }
-
-  Widget _buildDivider(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final textScaler = MediaQuery.textScalerOf(context);
-    return Row(
-      children: [
-        Expanded(
-          child: Container(height: 0.5, color: colorScheme.outlineVariant),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'ou',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: textScaler.scale(15),
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(height: 0.5, color: colorScheme.outlineVariant),
-        ),
-      ],
     );
   }
 }

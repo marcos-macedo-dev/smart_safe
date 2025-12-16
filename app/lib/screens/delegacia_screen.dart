@@ -18,7 +18,20 @@ class DelegaciaScreen extends StatefulWidget {
 
 class _DelegaciaScreenState extends State<DelegaciaScreen> {
   static const Color _violetaEscura = Color(0xFF311756);
-  static const Color _violetaMedia = Color(0xFF401F56);
+
+  // Tema dinâmico
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _violetaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
 
   List<Delegacia> _delegacias = [];
   bool _isLoading = true;
@@ -242,30 +255,28 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline, width: 1),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 4)),
+        ],
       ),
       child: TextField(
         controller: searchController,
         onChanged: _filterDelegacias,
         style: TextStyle(
           fontSize: textScaler.scale(15),
-          color: colorScheme.onSurface,
+          color: textPrimary,
           letterSpacing: -0.2,
         ),
         decoration: InputDecoration(
           hintText: 'Buscar delegacia...',
           hintStyle: TextStyle(
-            color: colorScheme.onSurfaceVariant,
+            color: textMuted,
             fontSize: textScaler.scale(15),
             letterSpacing: -0.2,
           ),
-          prefixIcon: Icon(
-            LucideIcons.search,
-            color: colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
+          prefixIcon: Icon(LucideIcons.search, color: accent, size: 20),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -320,9 +331,11 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline, width: 1),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 4)),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -344,16 +357,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
               children: [
                 // Ícone principal
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: _violetaEscura,
+                    color: accent,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
                     child: Icon(
                       LucideIcons.shield,
-                      size: 22,
+                      size: 24,
                       color: Colors.white,
                     ),
                   ),
@@ -370,9 +383,9 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                         delegacia.nome,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontSize: textScaler.scale(15),
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                          letterSpacing: -0.2,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                          letterSpacing: -0.3,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -384,7 +397,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                         delegacia.endereco ?? 'Endereço não disponível',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontSize: textScaler.scale(13),
-                          color: colorScheme.onSurfaceVariant,
+                          color: textMuted,
                           letterSpacing: -0.1,
                         ),
                         maxLines: 2,
@@ -447,8 +460,15 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: _violetaEscura,
+                    color: accent,
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: shadow,
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -497,7 +517,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: shadow,
                 blurRadius: 16,
                 offset: const Offset(0, -4),
               ),
@@ -513,7 +533,7 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    color: textMuted.withOpacity(0.35),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -574,9 +594,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: _violetaEscura,
+              color: accent,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _violetaEscura, width: 1),
+              border: Border.all(color: accent, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: shadow,
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Material(
               color: Colors.transparent,
@@ -602,9 +629,16 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
 
           Container(
             decoration: BoxDecoration(
-              color: _violetaEscura,
+              color: accent,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _violetaEscura, width: 1),
+              border: Border.all(color: accent, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: shadow,
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Material(
               color: Colors.transparent,
@@ -643,16 +677,13 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    color: _violetaEscura,
-                    strokeWidth: 2,
-                  ),
+                  CircularProgressIndicator(color: accent, strokeWidth: 2),
                   const SizedBox(height: 16),
                   Text(
                     'Carregando...',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: textScaler.scale(15),
-                      color: colorScheme.onSurfaceVariant,
+                      color: textMuted,
                       letterSpacing: -0.2,
                     ),
                   ),

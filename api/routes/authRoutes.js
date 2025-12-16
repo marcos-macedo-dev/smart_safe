@@ -14,6 +14,9 @@ router.post('/reset-password/otp', authController.resetPasswordWithOtp);
 router.post('/request-password-reset/authority', authController.requestPasswordResetAuthority);
 router.post('/reset-password/authority/:token', authController.resetPasswordWithToken);
 
+// Refresh token (público, usa token de refresh)
+router.post('/refresh-token', authController.refreshToken);
+
 // Rota protegida para logout
 router.post('/logout', authController.logout);
 

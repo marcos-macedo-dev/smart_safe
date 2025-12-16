@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../config.dart';
 import '../models/delegacia.dart';
 import '../models/media.dart';
 import '../models/user.dart';
@@ -24,14 +25,25 @@ class ApiService {
   // Base configuration
   // ---------------------------------------------------------------------------
 
-  static const String _baseUrl = 'http://192.168.18.8:3002/api';
+  static const String _baseUrl = apiBaseUrl;
   static const Set<String> _authBypassPaths = {
     '/auth/login',
     '/auth/refresh-token',
     '/users',
   };
 
-  static final Dio _dio = Dio(BaseOptions(baseUrl: _baseUrl));
+  static final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: _baseUrl,
+      connectTimeout: const Duration(
+        seconds: 10,
+      ), // Timeout de conexão otimizado
+      receiveTimeout: const Duration(
+        seconds: 15,
+      ), // Timeout de recebimento otimizado
+      sendTimeout: const Duration(seconds: 15), // Timeout de envio otimizado
+    ),
+  );
   static final FlutterSecureStorage _secureStorage =
       const FlutterSecureStorage();
 
@@ -146,22 +158,25 @@ class ApiService {
         data: {'email': email, 'senha': senha},
       );
 
-      if (response.statusCode != 200 ||
-          response.data is! Map<String, dynamic>) {
+      if (response.statusCode != 200) {
         return null;
       }
 
+      // Novo formato: { accessToken, refreshToken, user: {...} }
       final payload = response.data as Map<String, dynamic>;
-      final data = payload['data'];
 
-      if (payload['success'] != true || data is! Map<String, dynamic>) {
-        debugPrint('Erro no login: Payload inesperado $payload');
-        return null;
-      }
+      // Mapeando para o formato esperado pelo _persistSession
+      // O app usa internamente a chave 'token', mas a API manda 'accessToken'
+      final sessionData = {
+        'token': payload['accessToken'],
+        'refreshToken': payload['refreshToken'],
+        'user': payload['user'],
+      };
 
-      await _persistSession(data);
-      final user = data['user'] as Map<String, dynamic>?;
-      return user != null ? User.fromJson(user) : null;
+      await _persistSession(sessionData);
+
+      final userData = payload['user'] as Map<String, dynamic>?;
+      return userData != null ? User.fromJson(userData) : null;
     } catch (e) {
       debugPrint('Erro no login: $e');
       return null;
@@ -206,13 +221,8 @@ class ApiService {
         }
 
         try {
-          // A API retorna {success: true, data: {...}, message: ...}
-          // Precisamos extrair o campo 'data'
-          final userData =
-              response.data is Map<String, dynamic> &&
-                  response.data.containsKey('data')
-              ? response.data['data']
-              : response.data;
+          // A API agora retorna o objeto usuário diretamente
+          final userData = response.data as Map<String, dynamic>;
 
           final user = User.fromJson(userData);
           debugPrint(

@@ -1,99 +1,168 @@
-const { User } = require('../models');
 const bcrypt = require('bcryptjs');
+const { User } = require('../models');
 const logAudit = require('../utils/auditLogger');
+const { excludePassword } = require('../utils/responseHelpers');
 
-// Função auxiliar para remover a senha do objeto do usuário
-const excludePassword = (user) => {
-  const { senha, ...rest } = user.toJSON();
-  return rest;
-};
+// ==========================================
+// Controller Methods
+// ==========================================
 
-// Criar um novo usuário
-exports.createUser = async (req, res) => {
-  try {
-    const { senha, genero, ...userData } = req.body;
+module.exports = {
+  /**
+   * Cria um novo usuário (Cidadão)
+   */
+  async createUser(req, res) {
+    try {
+      let { senha, email, genero, ...userData } = req.body;
 
-    const hashedPassword = await bcrypt.hash(senha, 10); // Hash da senha
-    const user = await User.create({ ...userData, genero, senha: hashedPassword });
-    await logAudit(req.user ? req.user.id : null, 'CREATE', 'usuario', user.id, user.toJSON());
-    return res.status(201).json(excludePassword(user));
-  } catch (error) {
-    console.error('Erro ao criar usuário:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor ao criar usuário.' });
-  }
-};
+      // Sanitização básica
+      if (!senha || !email) {
+        return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+      }
+      
+      senha = senha.trim();
+      email = email.trim();
 
-// Obter todos os usuários
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.findAll();
-    // logAudit(req.user ? req.user.id : null, 'ACCESS', 'usuario', null, { action: 'getAllUsers' }); // ACCESS logs can be noisy, consider middleware
-    return res.status(200).json(users.map(excludePassword));
-  } catch (error) {
-    console.error('Erro ao buscar usuários:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor ao buscar usuários.' });
-  }
-};
+      // Verificar se email já existe (opcional, pois o banco já trava, mas melhora a UX)
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(409).json({ error: 'Email já cadastrado.' });
+      }
 
-// Obter um usuário por ID
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
+      const hashedPassword = await bcrypt.hash(senha, 10);
+      
+      const user = await User.create({ 
+        ...userData, 
+        email, 
+        genero, 
+        senha: hashedPassword 
+      });
+
+      await logAudit(req.user?.id || null, 'CREATE', 'usuario', user.id, excludePassword(user));
+      
+      return res.status(201).json(excludePassword(user));
+
+    } catch (error) {
+      console.error('Erro em createUser:', error);
+      return res.status(500).json({ error: 'Erro interno ao criar usuário.' });
     }
-    // logAudit(req.user ? req.user.id : null, 'ACCESS', 'usuario', user.id, { action: 'getUserById' }); // ACCESS logs can be noisy, consider middleware
-    return res.status(200).json(excludePassword(user));
-  } catch (error) {
-    console.error('Erro ao buscar usuário por ID:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor ao buscar usuário.' });
-  }
-};
+  },
 
-// Atualizar um usuário por ID
-exports.updateUser = async (req, res) => {
-  try {
-    const { senha, genero, ...userData } = req.body;
-
-    let updateData = { ...userData, genero };
-
-    if (senha) {
-      updateData.senha = await bcrypt.hash(senha, 10);
+  /**
+   * Lista todos os usuários
+   */
+  async getAllUsers(req, res) {
+    try {
+      const users = await User.findAll();
+      return res.json(excludePassword(users)); // Helper agora suporta arrays!
+    } catch (error) {
+      console.error('Erro em getAllUsers:', error);
+      return res.status(500).json({ error: 'Erro interno ao buscar usuários.' });
     }
+  },
 
-    const [updated] = await User.update(updateData, {
-      where: { id: req.params.id }
-    });
+  /**
+   * Busca usuário por ID
+   */
+  async getUserById(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await User.findByPk(id);
 
-    if (updated) {
-      const updatedUser = await User.findByPk(req.params.id);
-      await logAudit(req.user ? req.user.id : null, 'UPDATE', 'usuario', updatedUser.id, { oldData: req.originalBody, newData: updatedUser.toJSON() }); // Assuming req.originalBody exists from a middleware
-      return res.status(200).json(excludePassword(updatedUser));
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      return res.json(excludePassword(user));
+    } catch (error) {
+      console.error('Erro em getUserById:', error);
+      return res.status(500).json({ error: 'Erro interno ao buscar usuário.' });
     }
-    return res.status(404).json({ error: 'Usuário não encontrado para atualização.' });
-  } catch (error) {
-    console.error('Erro ao atualizar usuário:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor ao atualizar usuário.' });
-  }
-};
+  },
 
-// Deletar um usuário por ID
-exports.deleteUser = async (req, res) => {
-  try {
-    const deleted = await User.destroy({
-      where: { id: req.params.id }
-    });
-    if (deleted) {
-      await logAudit(req.user ? req.user.id : null, 'DELETE', 'usuario', req.params.id, { message: 'Usuário deletado' });
-      return res.status(204).send(); // No Content
+  /**
+   * Atualiza dados do usuário
+   */
+  async updateUser(req, res) {
+    try {
+      const { id } = req.params;
+      let { senha, email, ...updateData } = req.body;
+
+      const user = await User.findByPk(id);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      // Preparar dados para atualização
+      if (senha) {
+        updateData.senha = await bcrypt.hash(senha.trim(), 10);
+      }
+      if (email) {
+        updateData.email = email.trim();
+      }
+
+      // Snapshot para auditoria
+      const oldData = user.toJSON();
+
+      await user.update(updateData);
+
+      await logAudit(req.user?.id || null, 'UPDATE', 'usuario', user.id, { 
+        oldData: excludePassword({ ...oldData }), 
+        newData: excludePassword(user) 
+      });
+
+      return res.json(excludePassword(user));
+
+    } catch (error) {
+      console.error('Erro em updateUser:', error);
+      return res.status(500).json({ error: 'Erro interno ao atualizar usuário.' });
     }
-    return res.status(404).json({ error: 'Usuário não encontrado para exclusão.' });
-  } catch (error) {
-    console.error('Erro ao deletar usuário:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor ao deletar usuário.' });
-  }
-};
+  },
 
-exports.getLoggedInUser = async (req, res) => {
-  res.json(req.user);
+  /**
+   * Remove um usuário
+   */
+  async deleteUser(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const user = await User.findByPk(id);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      await user.destroy();
+      
+      await logAudit(req.user?.id || null, 'DELETE', 'usuario', id, { message: 'Usuário deletado' });
+
+      return res.status(204).send();
+
+    } catch (error) {
+      console.error('Erro em deleteUser:', error);
+      return res.status(500).json({ error: 'Erro interno ao deletar usuário.' });
+    }
+  },
+
+  /**
+   * Retorna o usuário logado (perfil)
+   */
+  async getLoggedInUser(req, res) {
+    // req.user já vem populado pelo middleware de auth, mas geralmente sem detalhes atualizados do banco
+    // É uma boa prática buscar do banco novamente para garantir status atual
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Usuário não autenticado.' });
+      }
+
+      const user = await User.findByPk(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      return res.json(excludePassword(user));
+    } catch (error) {
+      console.error('Erro em getLoggedInUser:', error);
+      return res.status(500).json({ error: 'Erro interno ao buscar perfil.' });
+    }
+  }
 };

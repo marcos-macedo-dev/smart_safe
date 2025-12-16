@@ -41,8 +41,8 @@ class AdvancedSyncService {
       }
     });
 
-    // Sincronização periódica (a cada 5 minutos)
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+    // Sincronização periódica otimizada (a cada 2 minutos para ser mais responsivo)
+    _syncTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
       _triggerSync();
     });
 
@@ -72,9 +72,18 @@ class AdvancedSyncService {
     _isSyncing = true;
     _updateStatus(SyncStatus.syncing);
     try {
+      // Sincronizar itens pendentes com prioridade (SOSs primeiro)
       await _syncPendingItems();
-      await _syncUserData();
-      await _syncDelegacias();
+
+      // Sincronizar dados em paralelo para maior velocidade
+      await Future.wait([_syncUserData(), _syncDelegacias()]).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Timeout na sincronização de dados secundários');
+          return [];
+        },
+      );
+
       _updateStatus(SyncStatus.idle);
     } catch (e) {
       print('Erro durante sincronização: $e');
@@ -92,43 +101,88 @@ class AdvancedSyncService {
   Future<void> _syncPendingItems() async {
     final unsyncedItems = await _localDatabase.getUnsyncedItems();
 
-    for (final item in unsyncedItems) {
-      try {
-        final id = item['id'] as int;
-        final entityType = item['entity_type'] as String;
-        final entityId = item['entity_id'] as int;
-        final operation = item['operation'] as String;
-        final data = jsonDecode(item['data'] as String) as Map<String, dynamic>;
+    // Separar SOSs de outros itens para priorização
+    final sosItems = unsyncedItems
+        .where((item) => item['entity_type'] == 'sos')
+        .toList();
+    final otherItems = unsyncedItems
+        .where((item) => item['entity_type'] != 'sos')
+        .toList();
 
-        bool success = false;
+    // Processar SOSs primeiro (críticos)
+    await _processSyncItems(sosItems);
 
-        switch (entityType) {
-          case 'sos':
-            success = await _syncSosItem(entityId, operation, data);
-            break;
-          case 'contact':
-            success = await _syncContactItem(entityId, operation, data);
-            break;
-          default:
-            // Entidade não reconhecida, marcar como sincronizada para evitar loop
-            await _localDatabase.markItemAsSynced(id);
-            continue;
-        }
-
-        if (success) {
-          await _localDatabase.markItemAsSynced(id);
-        } else {
-          // Incrementar contador de tentativas
-          final retryCount = await _localDatabase.incrementRetryCount(id);
-          // Se falhar muitas vezes, marcar como erro (após 5 tentativas)
-          if (retryCount > 5) {
-            print('Item $id falhou após 5 tentativas: $entityType $operation');
-            // Aqui você pode implementar uma notificação para o usuário
-          }
-        }
-      } catch (e) {
-        print('Erro ao sincronizar item ${item['id']}: $e');
+    // Processar outros itens em paralelo (não críticos)
+    if (otherItems.isNotEmpty) {
+      // Dividir em lotes de 5 para processamento paralelo
+      for (int i = 0; i < otherItems.length; i += 5) {
+        final batch = otherItems.skip(i).take(5).toList();
+        await Future.wait(
+          batch.map((item) => _processSingleItem(item)),
+        ).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            print('Timeout no batch de sincronização');
+            return [];
+          },
+        );
       }
+    }
+  }
+
+  Future<void> _processSyncItems(List<Map<String, dynamic>> items) async {
+    for (final item in items) {
+      await _processSingleItem(item);
+    }
+  }
+
+  Future<void> _processSingleItem(Map<String, dynamic> item) async {
+    try {
+      final id = item['id'] as int;
+      final entityType = item['entity_type'] as String;
+      final entityId = item['entity_id'] as int;
+      final operation = item['operation'] as String;
+      final data = jsonDecode(item['data'] as String) as Map<String, dynamic>;
+
+      bool success = false;
+
+      switch (entityType) {
+        case 'sos':
+          success = await _syncSosItem(entityId, operation, data).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('Timeout ao sincronizar SOS $entityId');
+              return false;
+            },
+          );
+          break;
+        case 'contact':
+          success = await _syncContactItem(entityId, operation, data).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('Timeout ao sincronizar contato $entityId');
+              return false;
+            },
+          );
+          break;
+        default:
+          // Entidade não reconhecida, marcar como sincronizada para evitar loop
+          await _localDatabase.markItemAsSynced(id);
+          return;
+      }
+
+      if (success) {
+        await _localDatabase.markItemAsSynced(id);
+      } else {
+        // Incrementar contador de tentativas
+        final retryCount = await _localDatabase.incrementRetryCount(id);
+        // Se falhar muitas vezes, marcar como erro (após 3 tentativas para ser mais agressivo)
+        if (retryCount > 3) {
+          print('Item $id falhou após 3 tentativas: $entityType $operation');
+        }
+      }
+    } catch (e) {
+      print('Erro ao sincronizar item ${item['id']}: $e');
     }
   }
 

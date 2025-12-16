@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
@@ -10,177 +11,188 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final textScaler = MediaQuery.textScalerOf(context);
+    final isDark = theme.brightness == Brightness.dark;
+    const accent = Color(0xFF7C5CC3);
+    final cardColor = colorScheme.surface;
+    final textPrimary = colorScheme.onSurface;
+    final textMuted = colorScheme.onSurfaceVariant;
+    final shadow = Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Spacer(flex: 2),
-
-              // Logo e título com Material Design 3
-              Column(
+      backgroundColor: accent,
+      body: Stack(
+        children: [
+          // --- Parte Superior: Branding ---
+          SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: MediaQuery.sizeOf(context).height * 0.55,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Ícone do app com Material Design 3
+                  // Logo Minimalista Branco
                   Container(
-                    width: 120,
-                    height: 120,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF004A77), // Azul petróleo
-                          const Color(0xFF2BBBAD), // Verde-água
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF004A77).withOpacity(0.3),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      color: Colors.white.withOpacity(0.08),
+                      shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       LucideIcons.shield,
-                      size: 64,
+                      size: 72,
                       color: Colors.white,
                     ),
+                  ).animate().scale(
+                    duration: 600.ms,
+                    curve: Curves.easeOutBack,
                   ),
-                  const SizedBox(height: 32),
 
-                  // Título principal com Material Design 3
+                  const SizedBox(height: 24),
+
                   Text(
                     'Smart Safe',
-                    style: theme.textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface,
-                      letterSpacing: -1.2,
-                      fontSize: textScaler.scale(40),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Subtítulo elegante
-                  Text(
-                    'Sua segurança na palma da mão',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      letterSpacing: -0.2,
-                      fontSize: textScaler.scale(17),
-                    ),
-                  ),
+                  ).animate().fade(delay: 200.ms).slideY(begin: 0.2, end: 0),
                 ],
               ),
-
-              const Spacer(flex: 2),
-
-              // Botões com Material Design 3
-              Column(
-                children: [
-                  // Botão de Login - destaque principal
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        backgroundColor: const Color(0xFF004A77),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text(
-                        'Entrar',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                          fontSize: textScaler.scale(17),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Botão de Registro - secundário
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: const Color(0xFF004A77),
-                          width: 1.5,
-                        ),
-                        foregroundColor: const Color(0xFF004A77),
-                      ),
-                      child: Text(
-                        'Criar conta',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                          fontSize: textScaler.scale(17),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const Spacer(flex: 1),
-
-              // Footer discreto com ícone de segurança
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    LucideIcons.shieldCheck,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Protegido com criptografia',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -0.1,
-                      fontSize: textScaler.scale(13),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
+
+          // --- Parte Inferior: Ações (Sheet) ---
+          Align(
+            alignment: Alignment.bottomCenter,
+            child:
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(32, 40, 32, 24 + bottomPadding),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      topRight: Radius.circular(32),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: shadow,
+                        blurRadius: 24,
+                        offset: const Offset(0, -8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize:
+                        MainAxisSize.min, // Ocupa só o espaço necessário
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bem-vindo(a)',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: accent,
+                          letterSpacing: -0.5,
+                        ),
+                      ).animate().fade(delay: 400.ms),
+
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'Proteção inteligente para você e sua família em qualquer lugar.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 16,
+                          color: textMuted,
+                          height: 1.5,
+                          letterSpacing: -0.2,
+                        ),
+                      ).animate().fade(delay: 500.ms),
+
+                      const SizedBox(height: 40),
+
+                      // Botão Primário (Login)
+                      SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: FilledButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: accent,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text(
+                                'Entrar na minha conta',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                          .animate()
+                          .fade(delay: 600.ms)
+                          .slideY(begin: 0.2, end: 0),
+
+                      const SizedBox(height: 16),
+
+                      // Botão Secundário (Registro)
+                      SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: accent,
+                                side: BorderSide(
+                                  color: accent.withOpacity(0.35),
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text(
+                                'Criar nova conta',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          )
+                          .animate()
+                          .fade(delay: 700.ms)
+                          .slideY(begin: 0.2, end: 0),
+
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ).animate().slideY(
+                  begin: 1.0,
+                  end: 0,
+                  duration: 500.ms,
+                  curve: Curves.easeOutQuart,
+                ),
+          ),
+        ],
       ),
     );
   }

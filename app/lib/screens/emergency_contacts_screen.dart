@@ -20,14 +20,26 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
   static const Color _violetaEscura = Color(0xFF311756);
   static const Color _violetaMedia = Color(0xFF401F56);
 
+  // Tema dinâmico
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _violetaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
+
   late final EmergencyContactService _contactService;
-  List<EmergencyContact> _filteredContacts = [];
-  List<String> _availableRelationships = [];
+  List<EmergencyContact> _contacts = [];
   bool _isLoading = true;
   String? _error;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  String? _selectedFilter;
 
   @override
   void initState() {
@@ -59,10 +71,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     });
 
     try {
-      _availableRelationships = await _contactService
-          .getAvailableRelationships();
-      _availableRelationships.add('Sem parentesco');
-      _applyFilter();
+      _contacts = await _contactService.getContactsFiltered();
       _fadeController.forward();
     } catch (e) {
       if (mounted) {
@@ -78,32 +87,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
         });
       }
     }
-  }
-
-  Future<void> _applyFilter() async {
-    if (!mounted) return;
-
-    try {
-      _filteredContacts = await _contactService.getContactsFiltered(
-        relationship: _selectedFilter,
-      );
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'Erro ao aplicar filtro: $e';
-        });
-      }
-    }
-  }
-
-  Future<void> _setFilter(String? filter) async {
-    setState(() {
-      _selectedFilter = filter;
-    });
-    await _applyFilter();
   }
 
   Future<void> _showImportContacts() async {
@@ -129,10 +112,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
 
     try {
       await _contactService.deleteContact(contact.id!);
-      if (mounted) {
-        await _loadContacts();
-        _showMessage('Contato removido com sucesso');
-      }
+      await _loadContacts();
+      _showMessage('Contato removido com sucesso');
     } catch (e) {
       if (mounted) {
         _showMessage('Erro ao remover contato: $e');
@@ -168,7 +149,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: _violetaEscura,
+        backgroundColor: accent,
         content: Text(message, style: const TextStyle(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -185,82 +166,25 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          if (_selectedFilter != null)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _violetaEscura,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _violetaEscura),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedFilter!,
-                    style: TextStyle(
-                      fontSize: textScaler.scale(12),
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _setFilter(null),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          PopupMenuButton<String>(
-            onSelected: _setFilter,
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: null, child: Text('Todos')),
-              ..._getUniqueParentescos().map(
-                (parentesco) =>
-                    PopupMenuItem(value: parentesco, child: Text(parentesco)),
-              ),
-            ],
-            icon: Icon(
-              Icons.filter_list_rounded,
-              color: _selectedFilter != null
-                  ? _violetaEscura
-                  : colorScheme.onSurface.withOpacity(0.7),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: null,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
           child: _buildBody(theme, colorScheme, textScaler),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showImportContacts,
-        backgroundColor: _violetaEscura,
+        backgroundColor: accent,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.contacts_rounded),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Adicionar',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        elevation: 4,
       ),
     );
-  }
-
-  List<String> _getUniqueParentescos() {
-    return _availableRelationships;
   }
 
   Widget _buildBody(
@@ -276,7 +200,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
       return _buildErrorState(theme, colorScheme, textScaler);
     }
 
-    if (_filteredContacts.isEmpty) {
+    if (_contacts.isEmpty) {
       return _buildEmptyState(theme, colorScheme, textScaler);
     }
 
@@ -292,13 +216,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: _violetaEscura, strokeWidth: 2),
+          CircularProgressIndicator(color: accent, strokeWidth: 2),
           const SizedBox(height: 16),
           Text(
             'Carregando...',
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: textScaler.scale(15),
-              color: colorScheme.onSurfaceVariant,
+              color: textMuted,
               letterSpacing: -0.2,
             ),
           ),
@@ -350,22 +274,18 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
               height: 48,
               child: OutlinedButton.icon(
                 onPressed: _loadContacts,
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  size: 18,
-                  color: _violetaEscura,
-                ),
+                icon: Icon(Icons.refresh_rounded, size: 18, color: accent),
                 label: Text(
                   'Tentar Novamente',
                   style: TextStyle(
                     fontSize: textScaler.scale(15),
                     fontWeight: FontWeight.w600,
-                    color: _violetaEscura,
+                    color: accent,
                     letterSpacing: -0.2,
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: _violetaEscura, width: 1),
+                  side: BorderSide(color: accent, width: 1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -383,7 +303,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
     ColorScheme colorScheme,
     TextScaler textScaler,
   ) {
-    final hasFilter = _selectedFilter != null;
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Center(
@@ -393,75 +312,57 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
-                  color: _violetaEscura.withOpacity(0.15),
+                  color: accent.withOpacity(0.1),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _violetaEscura.withOpacity(0.5),
-                    width: 1,
-                  ),
                 ),
                 child: Icon(
-                  hasFilter
-                      ? Icons.filter_list_rounded
-                      : Icons.contact_page_rounded,
-                  size: 40,
-                  color: _violetaEscura,
+                  Icons.contact_page_rounded,
+                  size: 50,
+                  color: accent,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(
-                hasFilter
-                    ? 'Nenhum contato encontrado'
-                    : 'Nenhum contato de emergência',
+                'Nenhum contato de emergência',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: textScaler.scale(20),
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  color: textPrimary,
                   letterSpacing: -0.3,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                hasFilter
-                    ? 'Não há contatos com o filtro selecionado.'
-                    : 'Importe contatos do seu celular para serem notificados em emergências.',
+                'Adicione contatos para serem notificados em situações de emergência.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontSize: textScaler.scale(15),
-                  color: colorScheme.onSurfaceVariant,
+                  color: textMuted,
                   letterSpacing: -0.2,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: hasFilter
-                      ? () => _setFilter(null)
-                      : _showImportContacts,
-                  icon: Icon(
-                    hasFilter
-                        ? Icons.filter_list_off_rounded
-                        : Icons.contacts_rounded,
-                    size: 18,
-                    color: _violetaEscura,
-                  ),
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: _showImportContacts,
+                  icon: const Icon(Icons.add_rounded, size: 20),
                   label: Text(
-                    hasFilter ? 'Remover filtro' : 'Importar Contatos',
+                    'Adicionar Contatos',
                     style: TextStyle(
-                      fontSize: textScaler.scale(15),
+                      fontSize: textScaler.scale(16),
                       fontWeight: FontWeight.w600,
-                      color: _violetaEscura,
                       letterSpacing: -0.2,
                     ),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: _violetaEscura, width: 1),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -484,20 +385,24 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen>
       opacity: _fadeAnimation,
       child: RefreshIndicator(
         onRefresh: _loadContacts,
-        color: _violetaEscura,
+        color: accent,
         child: ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _filteredContacts.length,
+          padding: EdgeInsets.zero,
+          itemCount: _contacts.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final contact = _filteredContacts[index];
+            final contact = _contacts[index];
             return _ContactCard(
               contact: contact,
               onDelete: () => _deleteContact(contact),
               colorScheme: colorScheme,
               textScaler: textScaler,
-              accentColor: _violetaEscura,
+              accentColor: accent,
               accentTextColor: Colors.white,
+              cardColor: cardColor,
+              shadow: shadow,
+              textPrimary: textPrimary,
+              textMuted: textMuted,
             );
           },
         ),
@@ -514,6 +419,10 @@ class _ContactCard extends StatelessWidget {
   final TextScaler textScaler;
   final Color accentColor;
   final Color accentTextColor;
+  final Color cardColor;
+  final Color shadow;
+  final Color textPrimary;
+  final Color textMuted;
 
   const _ContactCard({
     required this.contact,
@@ -522,6 +431,10 @@ class _ContactCard extends StatelessWidget {
     required this.textScaler,
     required this.accentColor,
     required this.accentTextColor,
+    required this.cardColor,
+    required this.shadow,
+    required this.textPrimary,
+    required this.textMuted,
   });
 
   @override
@@ -547,9 +460,15 @@ class _ContactCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 0),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline, width: 1),
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: shadow,
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.all(16),
@@ -570,9 +489,9 @@ class _ContactCard extends StatelessWidget {
             contact.nome,
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: textScaler.scale(16),
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-              letterSpacing: -0.2,
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+              letterSpacing: -0.3,
             ),
           ),
           subtitle: Column(
@@ -587,7 +506,8 @@ class _ContactCard extends StatelessWidget {
                     contact.telefone,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: textScaler.scale(14),
-                      color: colorScheme.onSurfaceVariant,
+                      color: textMuted,
+                      fontWeight: FontWeight.w500,
                       letterSpacing: -0.1,
                     ),
                   ),

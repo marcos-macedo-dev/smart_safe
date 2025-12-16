@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'welcome_screen.dart';
 import 'login_screen.dart';
 import 'main_layout.dart';
-import '../widgets/offline_indicator.dart';
 import '../widgets/sync_status_indicator.dart';
 
 class RootScreen extends StatefulWidget {
@@ -82,8 +81,7 @@ class MainLayoutWithIndicators extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        OfflineIndicator(),
+      children: [
         SyncStatusIndicator(),
         Expanded(child: MainLayout()),
       ],

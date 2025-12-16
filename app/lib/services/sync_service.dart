@@ -21,7 +21,9 @@ class SyncService {
 
   SyncService(this._apiService) {
     _sosService = SosService(_apiService); // Initialize SosService here
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
       if (results.any((result) => result != ConnectivityResult.none)) {
         _syncUnsyncedSosRecords();
       }
@@ -33,7 +35,9 @@ class SyncService {
   }
 
   Future<String?> _uploadMediaAndGetPath(String? localPath) async {
-    if (localPath == null || localPath.isEmpty || localPath.startsWith('http')) {
+    if (localPath == null ||
+        localPath.isEmpty ||
+        localPath.startsWith('http')) {
       return localPath; // Already uploaded or no media
     }
 
@@ -61,59 +65,108 @@ class SyncService {
     print('Attempting to sync unsynced SOS records...');
     final unsyncedRecords = await _localDatabase.getUnsyncedSosRecords();
 
-    for (var record in unsyncedRecords) {
-      try {
-        String? audioCloudPath = record.caminho_audio;
-        String? videoCloudPath = record.caminho_video;
+    // Processar em lotes de 3 para otimização
+    for (int i = 0; i < unsyncedRecords.length; i += 3) {
+      final batch = unsyncedRecords.skip(i).take(3).toList();
 
-        // Upload audio if it's a local path
-        if (record.caminho_audio != null && !record.caminho_audio!.startsWith('http')) {
-          audioCloudPath = await _uploadMediaAndGetPath(record.caminho_audio);
-          if (audioCloudPath == null) {
-            print('Skipping SOS ${record.id} due to audio upload failure.');
-            continue; // Skip this SOS if media upload fails
-          }
-        }
-
-        // Upload video if it's a local path
-        if (record.caminho_video != null && !record.caminho_video!.startsWith('http')) {
-          videoCloudPath = await _uploadMediaAndGetPath(record.caminho_video);
-          if (videoCloudPath == null) {
-            print('Skipping SOS ${record.id} due to video upload failure.');
-            continue; // Skip this SOS if media upload fails
-          }
-        }
-
-        // Prepare data for API, now with cloud paths for media
-        final data = {
-          'usuario_id': record.usuario_id,
-          'latitude': record.latitude,
-          'longitude': record.longitude,
-          'status': record.status.toString().split('.').last,
-          if (audioCloudPath != null) 'caminho_audio': audioCloudPath,
-          if (videoCloudPath != null) 'caminho_video': videoCloudPath,
-          'createdAt': record.createdAt.toIso8601String(),
-          'updatedAt': record.updatedAt.toIso8601String(),
-          if (record.encerrado_em != null) 'encerrado_em': record.encerrado_em!.toIso8601String(),
-        };
-
-        // Attempt to send to API
-        final response = await _apiService.post('/sos', data: data);
-
-        if (response.statusCode == 201) {
-          await _localDatabase.markSosRecordAsSynced(record.id);
-          print('SOS record ${record.id} synced successfully.');
-        } else {
-          print('Failed to sync SOS record ${record.id}: ${response.statusCode}');
-        }
-      } catch (e) {
-        print('Error syncing SOS record ${record.id}: $e');
-        // Continue to next record even if one fails
-      }
+      await Future.wait(
+        batch.map((record) => _syncSingleRecord(record)),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Timeout no batch de sincronização');
+          return [];
+        },
+      );
     }
-    // Optionally, delete synced records after a successful sync
+
+    // Deletar registros sincronizados
     await _localDatabase.deleteSyncedSosRecords();
     print('Sync process completed.');
+  }
+
+  Future<void> _syncSingleRecord(dynamic record) async {
+    try {
+      String? audioCloudPath = record.caminho_audio;
+      String? videoCloudPath = record.caminho_video;
+
+      // Upload de áudio e vídeo em paralelo se ambos existirem
+      final uploadFutures = <Future<String?>>[];
+
+      if (record.caminho_audio != null &&
+          !record.caminho_audio!.startsWith('http')) {
+        uploadFutures.add(_uploadMediaAndGetPath(record.caminho_audio));
+      }
+
+      if (record.caminho_video != null &&
+          !record.caminho_video!.startsWith('http')) {
+        uploadFutures.add(_uploadMediaAndGetPath(record.caminho_video));
+      }
+
+      if (uploadFutures.isNotEmpty) {
+        final results = await Future.wait(uploadFutures).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            print('Timeout no upload de mídias do SOS ${record.id}');
+            return List.filled(uploadFutures.length, null);
+          },
+        );
+
+        int resultIndex = 0;
+        if (record.caminho_audio != null &&
+            !record.caminho_audio!.startsWith('http')) {
+          audioCloudPath = results[resultIndex];
+          if (audioCloudPath == null) {
+            print('Skipping SOS ${record.id} due to audio upload failure.');
+            return;
+          }
+          resultIndex++;
+        }
+
+        if (record.caminho_video != null &&
+            !record.caminho_video!.startsWith('http')) {
+          videoCloudPath = results[resultIndex];
+          if (videoCloudPath == null) {
+            print('Skipping SOS ${record.id} due to video upload failure.');
+            return;
+          }
+        }
+      }
+
+      // Preparar dados para API
+      final data = {
+        'usuario_id': record.usuario_id,
+        'latitude': record.latitude,
+        'longitude': record.longitude,
+        'status': record.status.toString().split('.').last,
+        if (audioCloudPath != null) 'caminho_audio': audioCloudPath,
+        if (videoCloudPath != null) 'caminho_video': videoCloudPath,
+        'createdAt': record.createdAt.toIso8601String(),
+        'updatedAt': record.updatedAt.toIso8601String(),
+        if (record.encerrado_em != null)
+          'encerrado_em': record.encerrado_em!.toIso8601String(),
+      };
+
+      // Enviar para API com timeout
+      final response = await _apiService
+          .post('/sos', data: data)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('Timeout ao enviar SOS ${record.id} para API');
+              throw TimeoutException('API timeout');
+            },
+          );
+
+      if (response.statusCode == 201) {
+        await _localDatabase.markSosRecordAsSynced(record.id);
+        print('SOS record ${record.id} synced successfully.');
+      } else {
+        print('Failed to sync SOS record ${record.id}: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error syncing SOS record ${record.id}: $e');
+    }
   }
 
   // Call this method when the app starts to sync any pending records

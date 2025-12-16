@@ -3,7 +3,6 @@ import '../models/user.dart';
 import '../services/api_service.dart';
 
 const Color _profileVioletaEscura = Color(0xFF311756);
-const Color _profileVioletaMedia = Color(0xFF401F56);
 
 class ProfileScreen extends StatefulWidget {
   final User? user;
@@ -23,6 +22,20 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late User? _user;
   bool _isLoading = true;
+
+  // Tema dinâmico
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _profileVioletaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
 
   @override
   void initState() {
@@ -123,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: _profileVioletaEscura,
+          backgroundColor: accent,
           content: Text(message, style: const TextStyle(color: Colors.white)),
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
@@ -156,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ).pushNamedAndRemoveUntil('/login', (route) => false);
             },
             style: FilledButton.styleFrom(
-              backgroundColor: _profileVioletaEscura,
+              backgroundColor: accent,
               foregroundColor: Colors.white,
             ),
             child: const Text('Fazer login'),
@@ -221,10 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     Widget content = _isLoading
         ? Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _profileVioletaEscura,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: accent),
           )
         : _user == null
         ? Center(
@@ -249,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: const Icon(Icons.refresh),
                   label: const Text('Tentar novamente'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: _profileVioletaEscura,
+                    backgroundColor: accent,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -258,24 +268,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           )
         : RefreshIndicator(
             onRefresh: _fetchProfileIfNeeded,
-            color: _profileVioletaEscura,
+            color: accent,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
                   // Avatar e nome
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(
-                        0.3,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colorScheme.outline, width: 1),
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: shadow,
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -286,15 +299,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                _profileVioletaMedia,
-                                _profileVioletaEscura,
-                              ],
+                              colors: [accent.withOpacity(0.85), accent],
                             ),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: _profileVioletaEscura.withOpacity(0.35),
+                                color: accent.withOpacity(0.35),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -318,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _user!.nome_completo,
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: colorScheme.onSurface,
+                            color: textPrimary,
                             letterSpacing: -0.3,
                             fontSize: textScaler.scale(20),
                           ),
@@ -328,7 +338,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           _user!.email,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
+                            color: textMuted,
                             letterSpacing: -0.1,
                             fontSize: textScaler.scale(14),
                           ),
@@ -337,17 +347,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   // Informações do perfil
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(
-                        0.3,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colorScheme.outline, width: 1),
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: shadow,
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,9 +369,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'Informações Pessoais',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                            letterSpacing: -0.2,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                            letterSpacing: -0.3,
                             fontSize: textScaler.scale(16),
                           ),
                         ),
@@ -373,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   // Botões de ação (estilo da tela de login)
                   SizedBox(
                     width: double.infinity,
@@ -384,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        backgroundColor: _profileVioletaEscura,
+                        backgroundColor: accent,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -414,11 +428,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        side: const BorderSide(
-                          color: _profileVioletaEscura,
-                          width: 1,
-                        ),
-                        backgroundColor: _profileVioletaEscura,
+                        side: BorderSide(color: accent, width: 1),
+                        backgroundColor: accent,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -487,21 +498,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? PopScope(
             canPop: true,
             child: Scaffold(
-              backgroundColor: colorScheme.surface,
+              backgroundColor: theme.colorScheme.surface,
               resizeToAvoidBottomInset: true,
               appBar: AppBar(
+                backgroundColor: theme.colorScheme.surface,
+                surfaceTintColor: Colors.transparent,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                   onPressed: () => Navigator.pop(context),
                 ),
                 title: const Text(
                   'Perfil',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 centerTitle: true,
                 elevation: 0,
-                backgroundColor: theme.colorScheme.surface,
-                foregroundColor: theme.colorScheme.onSurface,
               ),
               body: SafeArea(child: content),
             ),
@@ -520,15 +531,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             '$label:',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontWeight: FontWeight.w600,
+              color: textMuted,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
+            style: TextStyle(
+              fontSize: 14,
+              color: textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -616,9 +631,27 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF7C5CC3) : _profileVioletaEscura;
+    final cardColor = colorScheme.surface;
+    final textPrimary = colorScheme.onSurface;
+    final textMuted = colorScheme.onSurfaceVariant;
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 16 + bottomPadding),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -629,16 +662,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
+                  color: textPrimary,
                 ),
               ),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(
-                  Icons.close,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
+                icon: Icon(Icons.close, color: textMuted),
               ),
             ],
           ),
@@ -651,12 +681,18 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     controller: _nameController,
                     label: 'Nome Completo',
                     icon: Icons.person,
+                    accent: accent,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
                     controller: _emailController,
                     label: 'Email',
                     icon: Icons.email,
+                    accent: accent,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
@@ -664,6 +700,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     controller: _phoneController,
                     label: 'Telefone (opcional)',
                     icon: Icons.phone,
+                    accent: accent,
+                    textPrimary: textPrimary,
+                    textMuted: textMuted,
                     keyboardType: TextInputType.phone,
                   ),
                 ],
@@ -680,7 +719,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: _profileVioletaEscura,
+                backgroundColor: accent,
                 foregroundColor: Colors.white,
               ),
               child: _isSaving
@@ -704,22 +743,31 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required Color accent,
+    required Color textPrimary,
+    required Color textMuted,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    final theme = Theme.of(context);
-
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: _profileVioletaEscura),
+        labelStyle: TextStyle(color: textMuted),
+        floatingLabelStyle: TextStyle(color: accent),
+        prefixIcon: Icon(icon, color: accent),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _profileVioletaEscura, width: 2),
+          borderSide: BorderSide(color: accent, width: 2),
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: textMuted.withOpacity(0.3), width: 1),
+        ),
+        hintStyle: TextStyle(color: textMuted),
       ),
+      style: TextStyle(color: textPrimary),
     );
   }
 }
@@ -800,9 +848,24 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF7C5CC3) : _profileVioletaEscura;
+    final textMuted = colorScheme.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -813,16 +876,13 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(
-                  Icons.close,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
+                icon: Icon(Icons.close, color: textMuted),
               ),
             ],
           ),
@@ -868,7 +928,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: _profileVioletaEscura,
+                backgroundColor: accent,
                 foregroundColor: Colors.white,
               ),
               child: _isSaving
@@ -895,26 +955,37 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     required VoidCallback onToggleVisibility,
   }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final accent = isDark ? const Color(0xFF7C5CC3) : _profileVioletaEscura;
+    final textMuted = theme.colorScheme.onSurfaceVariant;
+    final textPrimary = theme.colorScheme.onSurface;
 
     return TextField(
       controller: controller,
       obscureText: obscureText,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: const Icon(Icons.lock, color: _profileVioletaEscura),
+        labelStyle: TextStyle(color: textMuted),
+        floatingLabelStyle: TextStyle(color: accent),
+        prefixIcon: Icon(Icons.lock, color: accent),
         suffixIcon: IconButton(
           icon: Icon(
             obscureText ? Icons.visibility : Icons.visibility_off,
-            color: _profileVioletaEscura,
+            color: accent,
           ),
           onPressed: onToggleVisibility,
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: textMuted.withOpacity(0.3), width: 1),
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _profileVioletaEscura, width: 2),
+          borderSide: BorderSide(color: accent, width: 2),
         ),
       ),
+      style: TextStyle(color: textPrimary),
     );
   }
 }

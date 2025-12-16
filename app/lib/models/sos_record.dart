@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart'; // Para IconData, se necessário
 import 'package:intl/intl.dart'; // Para formatação de data
+import '../config.dart'; // Importação da configuração global
 
 enum SosStatus { pendente, ativo, aguardando_autoridade, fechado, cancelado }
 
@@ -15,7 +16,7 @@ class SosRecord {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  static const String _baseUrl = 'http://192.168.18.8:3002/';
+  static const String _baseUrl = baseUrl; // Uso da constante global
 
   SosRecord({
     required this.id,
@@ -56,6 +57,13 @@ class SosRecord {
     final normalized = caminho_video!.startsWith('/')
         ? caminho_video!.substring(1)
         : caminho_video!;
+    // Garante que a baseUrl termine com '/' se o caminho não começar com '/'
+    // ou remove a '/' extra se ambos tiverem
+    if (_baseUrl.endsWith('/') && normalized.startsWith('/')) {
+        return '$_baseUrl${normalized.substring(1)}';
+    } else if (!_baseUrl.endsWith('/') && !normalized.startsWith('/')) {
+        return '$_baseUrl/$normalized';
+    }
     return '$_baseUrl$normalized';
   }
 
@@ -65,6 +73,13 @@ class SosRecord {
     final normalized = caminho_audio!.startsWith('/')
         ? caminho_audio!.substring(1)
         : caminho_audio!;
+    
+    // Mesma lógica de normalização de barra
+    if (_baseUrl.endsWith('/') && normalized.startsWith('/')) {
+        return '$_baseUrl${normalized.substring(1)}';
+    } else if (!_baseUrl.endsWith('/') && !normalized.startsWith('/')) {
+        return '$_baseUrl/$normalized';
+    }
     return '$_baseUrl$normalized';
   }
 

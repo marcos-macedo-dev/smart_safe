@@ -14,6 +14,20 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const Color _violetaEscura = Color(0xFF311756);
 
+  // Tema dinâmico
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _violetaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
+
   PackageInfo _packageInfo = PackageInfo(
     appName: 'Unknown',
     packageName: 'Unknown',
@@ -41,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: _violetaEscura,
+        backgroundColor: accent,
         content: Text(msg, style: const TextStyle(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -59,13 +73,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
               // Seção: Aparência
               _buildSettingCard(
                 theme: theme,
@@ -116,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Seção: Privacidade
               _buildSettingCard(
@@ -136,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   size: 20,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Seção: Sobre
               _buildSettingCard(
@@ -146,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.info_rounded,
                 title: "Sobre o Smart Safe",
                 subtitle:
-                    "Versão ${_packageInfo.version} (Build ${_packageInfo.buildNumber})",
+                    "Versão ${_packageInfo.version} (Build ${_packageInfo.buildNumber}) Beta",
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
@@ -183,9 +202,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline, width: 1),
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: shadow,
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -195,13 +220,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: _violetaEscura,
+                      color: accent,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(icon, color: Colors.white, size: 22),
+                    child: Icon(icon, color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -212,9 +237,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontSize: textScaler.scale(15),
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                            letterSpacing: -0.2,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                            letterSpacing: -0.3,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -222,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: textScaler.scale(13),
-                            color: colorScheme.onSurfaceVariant,
+                            color: textMuted,
                             letterSpacing: -0.1,
                           ),
                         ),
@@ -256,16 +281,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _showMessage('Tema alterado para $label');
       },
       child: Container(
-        height: 44,
+        height: 48,
         decoration: BoxDecoration(
-          color: isSelected
-              ? _violetaEscura
-              : colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          color: isSelected ? accent : cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? _violetaEscura : colorScheme.outline,
-            width: 1,
-          ),
+          border: isSelected
+              ? null
+              : Border.all(color: textMuted.withOpacity(0.2), width: 1),
         ),
         child: Center(
           child: Text(
@@ -273,8 +295,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: textScaler.scale(14),
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : colorScheme.onSurface,
-              letterSpacing: -0.1,
+              color: isSelected ? Colors.white : textPrimary,
+              letterSpacing: -0.2,
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import '../models/sos_record.dart';
 import 'api_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -59,7 +60,36 @@ class SosService {
     final usuarioId = await _getUserId();
     if (usuarioId == null) return null;
 
-    // Sempre salvar localmente primeiro (modo offline-first)
+    // Verificar conectividade ANTES de decidir o fluxo
+    final connectivityResult = await (Connectivity().checkConnectivity());
+    final isOnline = connectivityResult != ConnectivityResult.none;
+
+    if (isOnline) {
+      // TEM INTERNET: Enviar direto para API (sem adicionar à fila de sincronização)
+      print('SosService: Online - enviando SOS direto para API');
+      final onlineSos = await _sendSosDirectlyToApi(
+        usuarioId,
+        latitude,
+        longitude,
+        caminhoAudio,
+        caminhoVideo,
+      );
+
+      if (onlineSos != null) {
+        // Sucesso online - salvar cópia local já marcada como sincronizada
+        await _localDatabase.insertSosRecord(onlineSos);
+        await _localDatabase.markSosRecordAsSynced(onlineSos.id);
+        return onlineSos;
+      }
+
+      // Falhou mesmo com internet: faz fallback para fluxo offline para não perder o SOS
+      print('SosService: Falha ao enviar online, caindo para fila offline.');
+    }
+
+    // SEM INTERNET OU FALHA ONLINE: Salvar localmente e adicionar à fila
+    print(
+      'SosService: Offline - salvando SOS localmente para sincronização posterior',
+    );
     final localSosRecord = await _saveSosLocally(
       usuarioId,
       latitude,
@@ -67,19 +97,89 @@ class SosService {
       caminhoAudio,
       caminhoVideo,
     );
+
     if (localSosRecord == null) {
       print('SosService: Falha ao salvar SOS localmente');
       return null;
     }
 
-    // Tentar sincronizar online em background se houver conectividade
-    _trySyncOnline(localSosRecord).catchError((error) {
-      print('SosService: Erro na sincronização online (background): $error');
-      // Se falhar, adicionar ao sistema de sincronização avançada
-      _addToAdvancedSync(localSosRecord);
-    });
+    // Adicionar à fila de sincronização (SOMENTE para SOSs offline)
+    await _addToAdvancedSync(localSosRecord);
 
     return localSosRecord;
+  }
+
+  // Método para enviar SOS direto para API (quando online)
+  Future<SosRecord?> _sendSosDirectlyToApi(
+    int usuarioId,
+    double latitude,
+    double longitude,
+    String? caminhoAudio,
+    String? caminhoVideo,
+  ) async {
+    try {
+      String? finalCaminhoAudio = caminhoAudio;
+      String? finalCaminhoVideo = caminhoVideo;
+
+      // Upload de mídia se necessário
+      if (caminhoAudio != null && !caminhoAudio.startsWith('http')) {
+        try {
+          final uploadedMedia = await ApiService.uploadFile(File(caminhoAudio));
+          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
+            finalCaminhoAudio = uploadedMedia.caminho;
+            await File(caminhoAudio).delete();
+          } else {
+            print('SosService: Upload de áudio falhou, seguindo sem áudio');
+            finalCaminhoAudio = null; // Evitar enviar caminho local
+          }
+        } catch (e) {
+          print('SosService: Erro ao fazer upload de áudio: $e');
+          finalCaminhoAudio = null; // Prosseguir sem mídia para não abortar
+        }
+      }
+
+      if (caminhoVideo != null && !caminhoVideo.startsWith('http')) {
+        try {
+          final uploadedMedia = await ApiService.uploadFile(File(caminhoVideo));
+          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
+            finalCaminhoVideo = uploadedMedia.caminho;
+            await File(caminhoVideo).delete();
+          } else {
+            print('SosService: Upload de vídeo falhou, seguindo sem vídeo');
+            finalCaminhoVideo = null;
+          }
+        } catch (e) {
+          print('SosService: Erro ao fazer upload de vídeo: $e');
+          finalCaminhoVideo = null;
+        }
+      }
+
+      // Preparar dados para envio
+      final Map<String, dynamic> data = {
+        'usuario_id': usuarioId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'status': 'pendente',
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      if (finalCaminhoAudio != null) data['caminho_audio'] = finalCaminhoAudio;
+      if (finalCaminhoVideo != null) data['caminho_video'] = finalCaminhoVideo;
+
+      // Enviar para API
+      final response = await _apiService.post('/sos', data: data);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('SosService: SOS enviado com sucesso para API');
+        return SosRecord.fromJson(response.data);
+      }
+
+      print('SosService: Falha ao enviar SOS - Status: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      print('SosService: Erro ao enviar SOS direto para API: $e');
+      return null;
+    }
   }
 
   // Método para adicionar SOS à fila de sincronização avançada
@@ -91,114 +191,6 @@ class SosService {
       );
     } catch (e) {
       print('SosService: Erro ao adicionar SOS à fila de sincronização: $e');
-    }
-  }
-
-  // Método para tentar sincronizar online em background
-  Future<void> _trySyncOnline(SosRecord localSosRecord) async {
-    try {
-      // Verificar conectividade
-      final connectivityResult = await (Connectivity().checkConnectivity());
-      if (connectivityResult == ConnectivityResult.none) {
-        print('SosService: Sem conectividade, pulando sincronização online');
-        return;
-      }
-
-      print(
-        'SosService: Tentando sincronizar SOS ${localSosRecord.id} online...',
-      );
-
-      String? finalCaminhoAudio = localSosRecord.caminho_audio;
-      String? finalCaminhoVideo = localSosRecord.caminho_video;
-
-      // Tentar fazer upload da mídia se for caminho local
-      if (localSosRecord.caminho_audio != null &&
-          !localSosRecord.caminho_audio!.startsWith('http')) {
-        try {
-          final uploadedMedia = await ApiService.uploadFile(
-            File(localSosRecord.caminho_audio!),
-          );
-          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
-            finalCaminhoAudio = uploadedMedia.caminho;
-            // Não deletar arquivo local ainda - será deletado após confirmação da sincronização
-          }
-        } catch (e) {
-          print('SosService: Erro ao fazer upload de áudio: $e');
-        }
-      }
-
-      if (localSosRecord.caminho_video != null &&
-          !localSosRecord.caminho_video!.startsWith('http')) {
-        try {
-          final uploadedMedia = await ApiService.uploadFile(
-            File(localSosRecord.caminho_video!),
-          );
-          if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
-            finalCaminhoVideo = uploadedMedia.caminho;
-            // Não deletar arquivo local ainda
-          }
-        } catch (e) {
-          print('SosService: Erro ao fazer upload de vídeo: $e');
-        }
-      }
-
-      // Preparar dados para envio
-      final Map<String, dynamic> data = {
-        'usuario_id': localSosRecord.usuario_id,
-        'latitude': localSosRecord.latitude,
-        'longitude': localSosRecord.longitude,
-        'status': localSosRecord.status.toString().split('.').last,
-        'createdAt': localSosRecord.createdAt.toIso8601String(),
-        'updatedAt': localSosRecord.updatedAt.toIso8601String(),
-      };
-
-      if (finalCaminhoAudio != null) {
-        data['caminho_audio'] = finalCaminhoAudio;
-      }
-      if (finalCaminhoVideo != null) {
-        data['caminho_video'] = finalCaminhoVideo;
-      }
-      if (localSosRecord.encerrado_em != null) {
-        data['encerrado_em'] = localSosRecord.encerrado_em!.toIso8601String();
-      }
-
-      // Tentar enviar para API
-      final response = await _apiService.post('/sos', data: data);
-      if (response.statusCode == 201) {
-        // Sucesso - marcar como sincronizado e limpar arquivos locais se foram enviados
-        await _localDatabase.markSosRecordAsSynced(localSosRecord.id);
-        print(
-          'SosService: SOS ${localSosRecord.id} sincronizado com sucesso online',
-        );
-
-        // Limpar arquivos locais após confirmação
-        if (localSosRecord.caminho_audio != null &&
-            finalCaminhoAudio != localSosRecord.caminho_audio) {
-          try {
-            await File(localSosRecord.caminho_audio!).delete();
-            print('SosService: Arquivo de áudio local deletado após upload');
-          } catch (e) {
-            print('SosService: Erro ao deletar arquivo de áudio local: $e');
-          }
-        }
-        if (localSosRecord.caminho_video != null &&
-            finalCaminhoVideo != localSosRecord.caminho_video) {
-          try {
-            await File(localSosRecord.caminho_video!).delete();
-            print('SosService: Arquivo de vídeo local deletado após upload');
-          } catch (e) {
-            print('SosService: Erro ao deletar arquivo de vídeo local: $e');
-          }
-        }
-      } else {
-        print(
-          'SosService: Falha ao sincronizar SOS ${localSosRecord.id} - Status: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      print(
-        'SosService: Erro na sincronização online do SOS ${localSosRecord.id}: $e',
-      );
     }
   }
 
@@ -234,11 +226,10 @@ class SosService {
   // Adicionar esta função ao SosService
   Future<void> syncPendingSosRecords() async {
     if (_isSyncing) {
-      // Se já estiver sincronizando, sai
       print('SosService: Sincronização já em andamento, pulando.');
       return;
     }
-    _isSyncing = true; // Define a flag para indicar que a sincronização começou
+    _isSyncing = true;
 
     try {
       final connectivityResult = await (Connectivity().checkConnectivity());
@@ -249,45 +240,66 @@ class SosService {
 
       print('SosService: Tentando sincronizar SOSs pendentes...');
       final unsyncedRecords = await _localDatabase.getUnsyncedSosRecords();
-      for (var record in unsyncedRecords) {
-        try {
-          final Map<String, dynamic> data = {
-            'usuario_id': record.usuario_id,
-            'latitude': record.latitude,
-            'longitude': record.longitude,
-            'status': record.status
-                .toString()
-                .split('.')
-                .last, // Convert enum to string
-            'createdAt': record.createdAt.toIso8601String(),
-            'updatedAt': record.updatedAt.toIso8601String(),
-          };
-          if (record.caminho_audio != null) {
-            data['caminho_audio'] = record.caminho_audio;
-          }
-          if (record.caminho_video != null) {
-            data['caminho_video'] = record.caminho_video;
-          }
-          if (record.encerrado_em != null) {
-            data['encerrado_em'] = record.encerrado_em!.toIso8601String();
-          }
 
-          final response = await _apiService.post('/sos', data: data);
-          if (response.statusCode == 201) {
-            await _localDatabase.markSosRecordAsSynced(record.id);
-            print('SosService: SOS ${record.id} sincronizado com sucesso.');
-          } else {
-            print(
-              'SosService: Falha ao sincronizar SOS ${record.id}. Status: ${response.statusCode}',
-            );
-          }
-        } catch (e) {
-          print('SosService: Erro ao sincronizar SOS ${record.id}: $e');
-        }
+      // Processar em lotes de 3 para evitar sobrecarga
+      for (int i = 0; i < unsyncedRecords.length; i += 3) {
+        final batch = unsyncedRecords.skip(i).take(3).toList();
+
+        await Future.wait(
+          batch.map((record) => _syncSingleSos(record)),
+        ).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            print('SosService: Timeout no batch de SOSs');
+            return [];
+          },
+        );
       }
     } finally {
-      _isSyncing =
-          false; // Garante que a flag seja resetada, mesmo em caso de erro
+      _isSyncing = false;
+    }
+  }
+
+  Future<void> _syncSingleSos(dynamic record) async {
+    try {
+      final Map<String, dynamic> data = {
+        'usuario_id': record.usuario_id,
+        'latitude': record.latitude,
+        'longitude': record.longitude,
+        'status': record.status.toString().split('.').last,
+        'createdAt': record.createdAt.toIso8601String(),
+        'updatedAt': record.updatedAt.toIso8601String(),
+      };
+      if (record.caminho_audio != null) {
+        data['caminho_audio'] = record.caminho_audio;
+      }
+      if (record.caminho_video != null) {
+        data['caminho_video'] = record.caminho_video;
+      }
+      if (record.encerrado_em != null) {
+        data['encerrado_em'] = record.encerrado_em!.toIso8601String();
+      }
+
+      final response = await _apiService
+          .post('/sos', data: data)
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              print('SosService: Timeout ao sincronizar SOS ${record.id}');
+              throw TimeoutException('Timeout na sincronização');
+            },
+          );
+
+      if (response.statusCode == 201) {
+        await _localDatabase.markSosRecordAsSynced(record.id);
+        print('SosService: SOS ${record.id} sincronizado com sucesso.');
+      } else {
+        print(
+          'SosService: Falha ao sincronizar SOS ${record.id}. Status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('SosService: Erro ao sincronizar SOS ${record.id}: $e');
     }
   }
 

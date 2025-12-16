@@ -14,6 +14,7 @@ import '../services/audio_service.dart';
 import '../services/camera_service.dart';
 import '../services/sos_service.dart';
 import '../services/api_service.dart';
+import '../utils/theme_helper.dart';
 import 'sos_action_dialog.dart';
 
 class SosScreen extends StatefulWidget {
@@ -35,7 +36,20 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   static const String _selectedActionKey = 'selected_sos_action';
   // Paleta violeta institucional
   static const Color _violetaEscura = Color(0xFF311756);
-  static const Color _violetaMedia = Color(0xFF401F56);
+
+  // Tema dinâmico para usar em múltiplos métodos
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _violetaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
 
   // Estado da UI
   bool _recording = false;
@@ -45,6 +59,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Timer? _locationTimer;
   bool _isInitializing = true;
   bool _isOnline = true;
+  Timer? _recordingTimer;
+  int _recordingSeconds = 0;
 
   // Detecção de movimento de emergência
   StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
@@ -110,7 +126,30 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     _accelerometerSubscription?.cancel();
     _emergencyModeTimer?.cancel();
     _locationTimer?.cancel();
+    _recordingTimer?.cancel();
     super.dispose();
+  }
+
+  void _startRecordingTimer() {
+    _recordingTimer?.cancel();
+    _recordingSeconds = 0;
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() => _recordingSeconds++);
+      }
+    });
+  }
+
+  void _stopRecordingTimer() {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    _recordingSeconds = 0;
+  }
+
+  String _formatDuration(int totalSeconds) {
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   Future<void> _initializeConnectivity() async {
@@ -255,6 +294,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       _recording = true;
       _currentAction = action;
     });
+    if (action == 'audio' || action == 'video') {
+      _startRecordingTimer();
+    }
     try {
       if (action == 'audio') {
         await _audioService.toggleRecording();
@@ -271,6 +313,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     } catch (e) {
       _showMessage('Erro ao iniciar gravação: $e');
       setState(() => _recording = false);
+      _stopRecordingTimer();
     }
   }
 
@@ -281,6 +324,8 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         : PermissionStatus.granted;
     if (!mic.isGranted || !cam.isGranted) {
       _showMessage('Permissão de câmera/microfone negada');
+      // Facilita correção imediata em caso extremo
+      openAppSettings();
       return false;
     }
     return true;
@@ -289,6 +334,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   Future<void> _stopAudioRecording() async {
     if (!_audioService.recording) {
       setState(() => _recording = false);
+      _stopRecordingTimer();
       return;
     }
     try {
@@ -296,11 +342,13 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       if (audioFile == null) {
         _showMessage('Falha ao gravar áudio.');
         setState(() => _recording = false);
+        _stopRecordingTimer();
         return;
       }
       final pos = await _obtainCurrentPosition();
       if (pos == null) {
         setState(() => _recording = false);
+        _stopRecordingTimer();
         return;
       }
       final sos = await _sosService.createSos(
@@ -310,12 +358,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       );
       if (sos == null) {
         _showMessage('Falha ao criar SOS.');
+        _stopRecordingTimer();
         return;
       }
       setState(() {
         _recording = false;
         _activeSosId = sos.id;
       });
+      _stopRecordingTimer();
       final message = _isOnline
           ? 'SOS de áudio enviado com sucesso!'
           : 'SOS de áudio salvo localmente (será sincronizado quando online)';
@@ -336,11 +386,13 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       if (videoFile == null) {
         _showMessage('Falha ao salvar vídeo.');
         setState(() => _recording = false);
+        _stopRecordingTimer();
         return;
       }
       final pos = await _obtainCurrentPosition();
       if (pos == null) {
         setState(() => _recording = false);
+        _stopRecordingTimer();
         return;
       }
       final sos = await _sosService.createSos(
@@ -350,12 +402,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       );
       if (sos == null) {
         _showMessage('Falha ao criar SOS.');
+        _stopRecordingTimer();
         return;
       }
       setState(() {
         _recording = false;
         _activeSosId = sos.id;
       });
+      _stopRecordingTimer();
       final message = _isOnline
           ? 'SOS de vídeo enviado com sucesso!'
           : 'SOS de vídeo salvo localmente (será sincronizado quando online)';
@@ -364,6 +418,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     } catch (e) {
       _showMessage('Erro ao processar vídeo: $e');
       setState(() => _recording = false);
+      _stopRecordingTimer();
     }
   }
 
@@ -513,25 +568,32 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textScaler = MediaQuery.textScalerOf(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardColor = this.cardColor;
+    final Color textPrimary = this.textPrimary;
+    final Color textMuted = this.textMuted;
+    final Color accent = this.accent;
+    final Color shadow = this.shadow;
 
     if (_isInitializing) {
       return Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: cardColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(_violetaMedia),
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
               ),
               const SizedBox(height: 16),
               Text(
                 'Carregando...',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontSize: textScaler.scale(15),
-                  color: colorScheme.onSurfaceVariant,
-                  letterSpacing: -0.2,
+                  color: textPrimary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
                 ),
               ),
             ],
@@ -544,29 +606,30 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-              // Header compacto com status
+              const SizedBox(height: 8),
+              // Header com badges flutuantes
               _buildHeader(theme, colorScheme, textScaler),
-              const Spacer(flex: 2),
-              // Botão SOS Principal centralizado
-              Center(child: _buildMainSosButton(theme, colorScheme)),
-              const SizedBox(height: 32),
-              // Indicador do tipo selecionado
-              Center(
-                child: _buildCurrentActionIndicator(
-                  theme,
-                  colorScheme,
-                  textScaler,
-                ),
-              ),
-              const Spacer(flex: 3),
-              // Controles na parte inferior
-              _buildBottomControls(theme, colorScheme, textScaler),
+              if (_currentAction != null) ...[
+                const SizedBox(height: 12),
+                _buildCurrentActionIndicator(theme, colorScheme, textScaler),
+              ],
               const SizedBox(height: 20),
+              // Botão SOS Principal - Card flutuante (prioridade máxima)
+              Expanded(
+                flex: 3,
+                child: Center(child: _buildMainSosButton(theme, colorScheme)),
+              ),
+              const SizedBox(height: 16),
+              // Card de seleção de tipo (compacto)
+              _buildActionTypeCard(theme, colorScheme, textScaler),
+              const SizedBox(height: 12),
+              // Card de localização (compacto)
+              _buildLocationCard(theme, colorScheme, textScaler),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -579,51 +642,21 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     ColorScheme colorScheme,
     TextScaler textScaler,
   ) {
-    return Row(
-      children: [
-        // Indicador de conectividade
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: _isOnline ? _violetaEscura : Colors.orange.withAlpha(30),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _isOnline ? _violetaEscura : Colors.orange.withAlpha(80),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _isOnline ? Icons.wifi : Icons.wifi_off,
-                size: 16,
-                color: _isOnline ? Colors.white : Colors.orange,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _isOnline ? 'Online' : 'Offline',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: _isOnline ? Colors.white : Colors.orange,
-                  fontSize: textScaler.scale(12),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (_recording)
+    if (_recording) {
+      return Row(
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: colorScheme.error.withAlpha(15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: colorScheme.error.withAlpha(30),
-                width: 1,
-              ),
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -632,28 +665,31 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: colorScheme.error,
+                    color: Colors.red.shade600,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Gravando',
+                  'Gravando · ${_formatDuration(_recordingSeconds)}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.error,
+                    color: Colors.red.shade700,
                     fontSize: textScaler.scale(12),
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                 ),
               ],
             ),
           ),
-      ],
-    );
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
-  // Botão SOS Principal (estilo mais minimalista como o login)
+  // Botão SOS Principal estilo Uber
   Widget _buildMainSosButton(ThemeData theme, ColorScheme colorScheme) {
     return ScaleTransition(
       scale: _recording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
@@ -663,34 +699,69 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           boxShadow: [
             BoxShadow(
               color: _emergencyModeActive
-                  ? Colors.red.withAlpha(40)
-                  : colorScheme.error.withAlpha(20),
-              blurRadius: 24,
-              spreadRadius: 4,
-              offset: const Offset(0, 8),
+                  ? Colors.red.shade600.withOpacity(0.4)
+                  : accent.withOpacity(0.25),
+              blurRadius: 32,
+              spreadRadius: 0,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            SizedBox(
-              width: 200,
-              height: 200,
-              child: ElevatedButton(
-                onPressed: _onSosPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _emergencyModeActive
-                      ? Colors.red.shade900
-                      : colorScheme.error,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: const CircleBorder(),
-                  padding: EdgeInsets.zero,
-                ),
-                child: Icon(
-                  _recording ? Icons.stop_rounded : Icons.warning_rounded,
-                  size: _recording ? 64 : 80,
+            Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                color: _emergencyModeActive ? Colors.red.shade700 : accent,
+                shape: BoxShape.circle,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _onSosPressed,
+                  customBorder: const CircleBorder(),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _recording
+                              ? Icons.stop_rounded
+                              : Icons.warning_rounded,
+                          size: _recording ? 60 : 80,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _recording
+                              ? 'PARAR'
+                              : (_isOnline ? 'SOS' : 'SOS OFFLINE'),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: _recording ? 18 : 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 3,
+                          ),
+                        ),
+                        if (!_isOnline)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Salva e envia quando voltar a ficar online',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -733,9 +804,9 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: _violetaEscura,
+        color: accent,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _violetaEscura, width: 1),
+        border: Border.all(color: accent, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -767,6 +838,124 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       default:
         return {'icon': Icons.help_outline_rounded, 'label': 'Escolher tipo'};
     }
+  }
+
+  // Card de seleção de tipo - Estilo Uber
+  Widget _buildActionTypeCard(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tipo de alerta',
+            style: TextStyle(
+              fontSize: textScaler.scale(16),
+              fontWeight: FontWeight.w700,
+              color: textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildQuickActionButton(
+                'audio',
+                Icons.mic_rounded,
+                theme,
+                colorScheme,
+              ),
+              const SizedBox(width: 12),
+              _buildQuickActionButton(
+                'video',
+                Icons.videocam_rounded,
+                theme,
+                colorScheme,
+              ),
+              const SizedBox(width: 12),
+              _buildQuickActionButton(
+                'location',
+                Icons.location_on_rounded,
+                theme,
+                colorScheme,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Card de localização - Estilo Uber
+  Widget _buildLocationCard(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    TextScaler textScaler,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.my_location_rounded, size: 20, color: accent),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Localização contínua',
+                  style: TextStyle(
+                    fontSize: textScaler.scale(15),
+                    color: textPrimary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Compartilhar em tempo real',
+                  style: TextStyle(
+                    fontSize: textScaler.scale(12),
+                    color: textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: _sendLocationRealtime,
+            onChanged: _activeSosId != null ? _toggleRealtimeLocation : null,
+            activeColor: accent,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildBottomControls(
@@ -826,18 +1015,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.my_location_rounded,
-                size: 20,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              Icon(Icons.my_location_rounded, size: 20, color: textMuted),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Localização contínua',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontSize: textScaler.scale(15),
-                    color: colorScheme.onSurface,
+                    color: textPrimary,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -847,7 +1032,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 onChanged: _activeSosId != null
                     ? _toggleRealtimeLocation
                     : null,
-                activeColor: _violetaMedia,
+                activeColor: accent,
               ),
             ],
           ),
@@ -869,19 +1054,26 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
         child: Container(
           height: 56,
           decoration: BoxDecoration(
-            color: isSelected
-                ? _violetaEscura
-                : colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
+            color: isSelected ? accent : cardColor,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? _violetaEscura : colorScheme.outline,
-              width: 1,
+              color: isSelected ? accent : colorScheme.outlineVariant,
+              width: isSelected ? 2 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: shadow.withOpacity(0.9),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
           child: Icon(
             icon,
-            size: 24,
-            color: isSelected ? Colors.white : colorScheme.onSurface,
+            size: 28,
+            color: isSelected ? Colors.white : textPrimary.withOpacity(0.7),
           ),
         ),
       ),

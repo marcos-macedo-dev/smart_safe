@@ -1,152 +1,177 @@
-
 const bcrypt = require('bcryptjs');
 const { Autoridade, Delegacia } = require('../models');
+const { excludePassword } = require('../utils/responseHelpers');
 
-// Apenas Unidades podem criar novas autoridades para sua própria delegacia
-exports.createAutoridade = async (req, res) => {
-  try {
-    const { nome, email, senha, cargo } = req.body;
-    const delegacia_id = req.user.delegacia_id; // Pega o ID da delegacia do token da unidade
+module.exports = {
+  /**
+   * Cria uma nova autoridade (Agente/Delegado)
+   * Restrito: Apenas Unidades (via middleware)
+   */
+  async createAutoridade(req, res) {
+    try {
+      let { nome, email, senha, cargo } = req.body;
+      const delegacia_id = req.user.delegacia_id;
 
-    // Criptografa a senha
-    const hashedPassword = await bcrypt.hash(senha, 10);
+      if (!nome || !email || !senha || !cargo) {
+        return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+      }
 
-    const novaAutoridade = await Autoridade.create({
-      nome,
-      email,
-      senha: hashedPassword,
-      cargo,
-      delegacia_id
-    });
+      // Sanitização
+      nome = nome.trim();
+      email = email.trim();
+      senha = senha.trim();
 
-    // Não retorna a senha
-    const { senha: _, ...autoridadeSemSenha } = novaAutoridade.toJSON();
-
-    res.status(201).json(autoridadeSemSenha);
-  } catch (error) {
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ error: 'Este email já está em uso.' });
-    }
-    console.error('Erro ao criar autoridade:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
-  }
-};
-
-
-// Obter perfil da autoridade logada
-exports.getLoggedInAutoridade = async (req, res) => {
-  try {
-    const autoridade = await Autoridade.findByPk(req.user.id, {
-      attributes: { exclude: ['senha'] }, // Exclui o campo senha
-      include: [{
-        model: Delegacia,
-        as: 'delegacia',
-        attributes: ['id', 'nome', 'endereco', 'telefone']
-      }]
-    });
-    
-    if (!autoridade) {
-      return res.status(404).json({ error: 'Autoridade não encontrada.' });
-    }
-    
-    res.status(200).json(autoridade);
-  } catch (error) {
-    console.error('Erro ao buscar autoridade:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
-  }
-};
-
-// Atualizar perfil da autoridade logada
-exports.updateLoggedInAutoridade = async (req, res) => {
-  try {
-    const { nome, email, senha } = req.body;
-    const autoridade = await Autoridade.findByPk(req.user.id);
-
-    if (!autoridade) {
-      return res.status(404).json({ error: 'Autoridade não encontrada.' });
-    }
-
-    // Atualiza os campos
-    autoridade.nome = nome ?? autoridade.nome;
-    autoridade.email = email ?? autoridade.email;
-
-    // Atualiza a senha se fornecida
-    if (senha) {
       const hashedPassword = await bcrypt.hash(senha, 10);
-      autoridade.senha = hashedPassword;
+
+      const novaAutoridade = await Autoridade.create({
+        nome,
+        email,
+        senha: hashedPassword,
+        cargo,
+        delegacia_id
+      });
+
+      return res.status(201).json(excludePassword(novaAutoridade));
+
+    } catch (error) {
+      if (error.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'Este email já está em uso.' });
+      }
+      console.error('Erro em createAutoridade:', error);
+      return res.status(500).json({ error: 'Erro interno ao criar autoridade.' });
     }
+  },
 
-    await autoridade.save();
+  /**
+   * Obtém o perfil da autoridade logada
+   */
+  async getLoggedInAutoridade(req, res) {
+    try {
+      const autoridade = await Autoridade.findByPk(req.user.id, {
+        attributes: { exclude: ['senha'] },
+        include: [{
+          model: Delegacia,
+          as: 'delegacia',
+          attributes: ['id', 'nome', 'endereco', 'telefone']
+        }]
+      });
+      
+      if (!autoridade) {
+        return res.status(404).json({ error: 'Autoridade não encontrada.' });
+      }
+      
+      return res.json(autoridade);
 
-    const { senha: _, ...autoridadeSemSenha } = autoridade.toJSON();
-    res.status(200).json(autoridadeSemSenha);
-  } catch (error) {
-    console.error('Erro ao atualizar autoridade:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
-  }
-};
+    } catch (error) {
+      console.error('Erro em getLoggedInAutoridade:', error);
+      return res.status(500).json({ error: 'Erro interno ao buscar perfil.' });
+    }
+  },
 
-// Apenas Unidades podem listar autoridades da sua delegacia
-exports.getAutoridadesByDelegacia = async (req, res) => {
-  try {
-    const delegacia_id = req.user.delegacia_id;
-    const autoridades = await Autoridade.findAll({
-      where: { delegacia_id },
-      attributes: { exclude: ['senha'] } // Exclui o campo senha
-    });
-    res.status(200).json(autoridades);
-  } catch (error) {
-    console.error('Erro ao buscar autoridades:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
-  }
-};
+  /**
+   * Atualiza o perfil da autoridade logada
+   */
+  async updateLoggedInAutoridade(req, res) {
+    try {
+      let { nome, email, senha } = req.body;
+      const autoridade = await Autoridade.findByPk(req.user.id);
 
-// Apenas Unidades podem atualizar uma autoridade da sua delegacia
-exports.updateAutoridade = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nome, email, cargo, ativo } = req.body;
-    const delegacia_id = req.user.delegacia_id;
+      if (!autoridade) {
+        return res.status(404).json({ error: 'Autoridade não encontrada.' });
+      }
 
-    const autoridade = await Autoridade.findOne({ where: { id, delegacia_id } });
+      // Atualizações com sanitização
+      if (nome) autoridade.nome = nome.trim();
+      if (email) autoridade.email = email.trim();
 
-    if (!autoridade) {
+      if (senha) {
+        autoridade.senha = await bcrypt.hash(senha.trim(), 10);
+      }
+
+      await autoridade.save();
+
+      return res.json(excludePassword(autoridade));
+
+    } catch (error) {
+      console.error('Erro em updateLoggedInAutoridade:', error);
+      return res.status(500).json({ error: 'Erro interno ao atualizar perfil.' });
+    }
+  },
+
+  /**
+   * Lista autoridades de uma delegacia específica
+   * Restrito: Apenas Unidades
+   */
+  async getAutoridadesByDelegacia(req, res) {
+    try {
+      const delegacia_id = req.user.delegacia_id;
+      
+      const autoridades = await Autoridade.findAll({
+        where: { delegacia_id },
+        attributes: { exclude: ['senha'] }
+      });
+
+      return res.json(autoridades);
+
+    } catch (error) {
+      console.error('Erro em getAutoridadesByDelegacia:', error);
+      return res.status(500).json({ error: 'Erro interno ao listar autoridades.' });
+    }
+  },
+
+  /**
+   * Atualiza uma autoridade específica da delegacia
+   * Restrito: Apenas Unidades (Admin local)
+   */
+  async updateAutoridade(req, res) {
+    try {
+      const { id } = req.params;
+      let { nome, email, cargo, ativo } = req.body;
+      const delegacia_id = req.user.delegacia_id;
+
+      const autoridade = await Autoridade.findOne({ where: { id, delegacia_id } });
+
+      if (!autoridade) {
+        return res.status(404).json({ error: 'Autoridade não encontrada nesta delegacia.' });
+      }
+
+      if (nome) autoridade.nome = nome.trim();
+      if (email) autoridade.email = email.trim();
+      if (cargo) autoridade.cargo = cargo;
+      if (ativo !== undefined) autoridade.ativo = ativo;
+
+      await autoridade.save();
+
+      return res.json(excludePassword(autoridade));
+
+    } catch (error) {
+      console.error('Erro em updateAutoridade:', error);
+      return res.status(500).json({ error: 'Erro interno ao atualizar autoridade.' });
+    }
+  },
+
+  /**
+   * Remove uma autoridade da delegacia
+   * Restrito: Apenas Unidades
+   */
+  async deleteAutoridade(req, res) {
+    try {
+      const { id } = req.params;
+      const delegacia_id = req.user.delegacia_id;
+
+      const deleted = await Autoridade.destroy({
+        where: { id, delegacia_id }
+      });
+
+      if (deleted) {
+        return res.status(204).send();
+      }
+
       return res.status(404).json({ error: 'Autoridade não encontrada nesta delegacia.' });
+
+    } catch (error) {
+      console.error('Erro em deleteAutoridade:', error);
+      return res.status(500).json({ error: 'Erro interno ao deletar autoridade.' });
     }
-
-    // Atualiza os campos
-    autoridade.nome = nome ?? autoridade.nome;
-    autoridade.email = email ?? autoridade.email;
-    autoridade.cargo = cargo ?? autoridade.cargo;
-    autoridade.ativo = ativo ?? autoridade.ativo;
-
-    await autoridade.save();
-
-    const { senha: _, ...autoridadeSemSenha } = autoridade.toJSON();
-    res.status(200).json(autoridadeSemSenha);
-  } catch (error) {
-    console.error('Erro ao atualizar autoridade:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
-  }
-};
-
-// Apenas Unidades podem deletar uma autoridade da sua delegacia
-exports.deleteAutoridade = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const delegacia_id = req.user.delegacia_id;
-
-    const deleted = await Autoridade.destroy({
-      where: { id, delegacia_id }
-    });
-
-    if (deleted) {
-      return res.status(204).send();
-    }
-
-    return res.status(404).json({ error: 'Autoridade não encontrada para exclusão nesta delegacia.' });
-  } catch (error) {
-    console.error('Erro ao deletar autoridade:', error);
-    res.status(500).json({ error: 'Erro interno do servidor.' });
   }
 };

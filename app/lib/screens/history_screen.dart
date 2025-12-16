@@ -20,13 +20,25 @@ class _HistoryScreenState extends State<HistoryScreen>
   static const Color _violetaEscura = Color(0xFF311756);
   static const Color _violetaMedia = Color(0xFF401F56);
 
+  // Tema dinâmico
+  Color get cardColor => Theme.of(context).colorScheme.surface;
+  Color get textPrimary => Theme.of(context).colorScheme.onSurface;
+  Color get textMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get accent {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFF7C5CC3) : _violetaEscura;
+  }
+
+  Color get shadow {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.black.withOpacity(isDark ? 0.35 : 0.08);
+  }
+
   late final SosService _sosService;
   List<SosRecord> _sosRecords = [];
-  List<SosRecord> _filteredRecords = [];
   bool _isLoading = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  SosStatus? _selectedFilter;
 
   @override
   void initState() {
@@ -55,7 +67,6 @@ class _HistoryScreenState extends State<HistoryScreen>
       final fetchedRecords = await _sosService.getSosRecords();
       setState(() {
         _sosRecords = fetchedRecords;
-        _applyFilter();
       });
       _fadeController.forward();
     } catch (e) {
@@ -70,41 +81,9 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
   }
 
-  void _applyFilter() {
-    if (_selectedFilter == null) {
-      _filteredRecords = _sosRecords;
-    } else {
-      _filteredRecords = _sosRecords
-          .where((record) => record.status == _selectedFilter)
-          .toList();
-    }
-  }
-
-  void _setFilter(SosStatus? status) {
-    setState(() {
-      _selectedFilter = status;
-      _applyFilter();
-    });
-  }
-
   void _showMessage(String msg, {AppMessageType type = AppMessageType.info}) {
     if (!mounted) return;
     AppMessage.show(context, message: msg, type: type);
-  }
-
-  String _getStatusText(SosStatus status) {
-    switch (status) {
-      case SosStatus.pendente:
-        return 'Pendente';
-      case SosStatus.ativo:
-        return 'Ativo';
-      case SosStatus.aguardando_autoridade:
-        return 'Aguardando Autoridade';
-      case SosStatus.fechado:
-        return 'Fechado';
-      case SosStatus.cancelado:
-        return 'Cancelado';
-    }
   }
 
   String _timeAgo(DateTime date) {
@@ -124,93 +103,17 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface.withOpacity(0.9),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          if (_selectedFilter != null)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _violetaEscura,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _violetaEscura, width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _getStatusText(_selectedFilter!),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: textScaler.scale(12),
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _setFilter(null),
-                    child: Icon(Icons.close_rounded, size: 16, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          PopupMenuButton<SosStatus?>(
-            onSelected: _setFilter,
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: null, child: Text('Todos')),
-              ...SosStatus.values.map((status) {
-                final dummyRecord = SosRecord(
-                  id: 0,
-                  usuario_id: 0,
-                  caminho_audio: null,
-                  latitude: 0,
-                  longitude: 0,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                  status: status,
-                );
-                return PopupMenuItem(
-                  value: status,
-                  child: Row(
-                    children: [
-                      Icon(
-                        dummyRecord.statusIcon,
-                        size: 16,
-                        color: dummyRecord.statusColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(_getStatusText(status)),
-                    ],
-                  ),
-                );
-              }),
-            ],
-            icon: Icon(
-              Icons.filter_list_rounded,
-              color: _selectedFilter != null
-                  ? _violetaEscura
-                  : colorScheme.onSurface.withOpacity(0.7),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: null,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
               // Content
               _isLoading
                   ? _buildLoadingState(theme, colorScheme, textScaler)
-                  : _filteredRecords.isEmpty
+                  : _sosRecords.isEmpty
                   ? _buildEmptyState(theme, colorScheme, textScaler)
                   : _buildHistoryList(theme, colorScheme, textScaler),
             ],
@@ -229,13 +132,13 @@ class _HistoryScreenState extends State<HistoryScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: _violetaEscura, strokeWidth: 2),
+          CircularProgressIndicator(color: accent, strokeWidth: 2),
           const SizedBox(height: 16),
           Text(
             'Carregando...',
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: textScaler.scale(15),
-              color: colorScheme.onSurfaceVariant,
+              color: textMuted,
               letterSpacing: -0.2,
             ),
           ),
@@ -249,7 +152,6 @@ class _HistoryScreenState extends State<HistoryScreen>
     ColorScheme colorScheme,
     TextScaler textScaler,
   ) {
-    final hasFilter = _selectedFilter != null;
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Center(
@@ -262,27 +164,18 @@ class _HistoryScreenState extends State<HistoryScreen>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: _violetaEscura.withOpacity(0.15),
+                  color: accent.withOpacity(0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _violetaEscura.withOpacity(0.6),
-                    width: 1,
-                  ),
+                  border: Border.all(color: accent.withOpacity(0.5), width: 1),
                 ),
-                child: Icon(
-                  hasFilter ? Icons.filter_list_rounded : Icons.history_rounded,
-                  size: 40,
-                  color: _violetaEscura,
-                ),
+                child: Icon(Icons.history_rounded, size: 40, color: accent),
               ),
               const SizedBox(height: 20),
               Text(
-                hasFilter
-                    ? 'Nenhum SOS encontrado'
-                    : 'Nenhum registro encontrado',
+                'Nenhum registro encontrado',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
+                  color: textPrimary,
                   letterSpacing: -0.3,
                   fontSize: textScaler.scale(18),
                 ),
@@ -290,12 +183,10 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                hasFilter
-                    ? 'Não há SOS com o status selecionado.'
-                    : 'Você ainda não criou nenhum SOS.',
+                'Você ainda não criou nenhum SOS.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontSize: textScaler.scale(15),
-                  color: colorScheme.onSurfaceVariant,
+                  color: textMuted,
                   letterSpacing: -0.2,
                 ),
                 textAlign: TextAlign.center,
@@ -304,29 +195,25 @@ class _HistoryScreenState extends State<HistoryScreen>
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: hasFilter
-                      ? () => _setFilter(null)
-                      : _loadSosRecords,
+                  onPressed: _loadSosRecords,
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    backgroundColor: _violetaEscura,
+                    backgroundColor: accent,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        hasFilter
-                            ? Icons.filter_list_off_rounded
-                            : Icons.refresh_rounded,
+                        Icons.refresh_rounded,
                         size: 20,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        hasFilter ? 'Remover filtro' : 'Atualizar',
+                        'Atualizar',
                         style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.2,
@@ -354,14 +241,14 @@ class _HistoryScreenState extends State<HistoryScreen>
       opacity: _fadeAnimation,
       child: RefreshIndicator(
         onRefresh: _loadSosRecords,
-        color: _violetaEscura,
+        color: accent,
         child: ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _filteredRecords.length,
+          itemCount: _sosRecords.length,
           itemBuilder: (context, index) {
-            final record = _filteredRecords[index];
+            final record = _sosRecords[index];
             return _buildSosCard(record, theme, colorScheme, textScaler, index);
           },
         ),
@@ -378,27 +265,20 @@ class _HistoryScreenState extends State<HistoryScreen>
   ) {
     return Container(
       margin: EdgeInsets.only(
-        bottom: index == _filteredRecords.length - 1 ? 16 : 12,
+        bottom: index == _sosRecords.length - 1 ? 16 : 12,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline, width: 1),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadow, blurRadius: 16, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header do card
           _buildCardHeader(record, theme, colorScheme, textScaler),
-          // Divider sutil
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(
-              color: colorScheme.outline.withOpacity(0.2),
-              thickness: 1,
-              height: 1,
-            ),
-          ),
           // Informações do SOS
           _buildCardInfo(record, theme, colorScheme, textScaler),
           // Ações
@@ -416,10 +296,10 @@ class _HistoryScreenState extends State<HistoryScreen>
   ) {
     final bool highlightStatus = record.status == SosStatus.ativo;
     final Color chipBackground = highlightStatus
-        ? _violetaEscura
+        ? accent
         : record.statusColor.withOpacity(0.1);
     final Color chipBorder = highlightStatus
-        ? _violetaEscura
+        ? accent
         : record.statusColor.withOpacity(0.3);
     final Color chipContentColor = highlightStatus
         ? Colors.white
@@ -437,17 +317,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                 'SOS #${record.id}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                  letterSpacing: -0.2,
-                  fontSize: textScaler.scale(16),
+                  color: textPrimary,
+                  letterSpacing: -0.3,
+                  fontSize: textScaler.scale(17),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 _timeAgo(record.createdAt),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: textScaler.scale(12),
-                  color: colorScheme.onSurfaceVariant,
+                  fontSize: textScaler.scale(13),
+                  color: textMuted,
                   letterSpacing: -0.1,
                 ),
               ),
@@ -492,7 +372,6 @@ class _HistoryScreenState extends State<HistoryScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Data
           _buildInfoRow(
             Icons.schedule_rounded,
             'Criado em',
@@ -502,7 +381,6 @@ class _HistoryScreenState extends State<HistoryScreen>
             textScaler,
           ),
           const SizedBox(height: 8),
-          // Localização
           _buildInfoRow(
             Icons.location_on_rounded,
             'Localização',
@@ -511,13 +389,11 @@ class _HistoryScreenState extends State<HistoryScreen>
             colorScheme,
             textScaler,
           ),
-          // Mídia
           if (record.fullCaminhoAudioUrl != null ||
               record.fullCaminhoVideoUrl != null) ...[
             const SizedBox(height: 8),
             _buildMediaRow(record, theme, colorScheme, textScaler),
           ],
-          // Encerramento
           if (record.encerrado_em != null) ...[
             const SizedBox(height: 8),
             _buildInfoRow(
@@ -529,7 +405,6 @@ class _HistoryScreenState extends State<HistoryScreen>
               textScaler,
             ),
           ],
-          // Última atualização
           if (record.updatedAt != record.createdAt) ...[
             const SizedBox(height: 8),
             _buildInfoRow(
@@ -555,7 +430,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.perm_media_rounded, size: 16, color: Colors.white),
+        Icon(Icons.perm_media_rounded, size: 18, color: accent),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -564,8 +439,8 @@ class _HistoryScreenState extends State<HistoryScreen>
               Text(
                 'Mídia',
                 style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withOpacity(0.85),
+                  fontSize: 12,
+                  color: textMuted,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -579,23 +454,19 @@ class _HistoryScreenState extends State<HistoryScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _violetaEscura.withOpacity(0.15),
+                        color: accent.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.mic_rounded,
-                            size: 10,
-                            color: _violetaEscura,
-                          ),
+                          Icon(Icons.mic_rounded, size: 10, color: accent),
                           const SizedBox(width: 3),
                           Text(
                             'Áudio',
                             style: TextStyle(
                               fontSize: 9,
-                              color: _violetaEscura,
+                              color: accent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -612,7 +483,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _violetaEscura,
+                        color: accent,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -655,7 +526,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.white),
+        Icon(icon, size: 18, color: accent),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -665,8 +536,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                 label,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: textScaler.scale(12),
-                  color: Colors.white.withOpacity(0.8),
+                  color: textMuted,
                   letterSpacing: -0.1,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 2),
@@ -674,9 +546,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                 value,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontSize: textScaler.scale(14),
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.1,
+                  color: textPrimary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
@@ -704,7 +576,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           // Botão Ver Mapa
           Expanded(
             child: SizedBox(
-              height: 44,
+              height: 48,
               child: FilledButton(
                 onPressed: () {
                   Navigator.push(
@@ -718,7 +590,8 @@ class _HistoryScreenState extends State<HistoryScreen>
                   );
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: _violetaEscura,
+                  backgroundColor: accent,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -780,12 +653,12 @@ class _HistoryScreenState extends State<HistoryScreen>
     required TextScaler textScaler,
   }) {
     return SizedBox(
-      height: 44,
+      height: 48,
       child: isPrimary
           ? FilledButton(
               onPressed: onPressed,
               style: FilledButton.styleFrom(
-                backgroundColor: _violetaEscura,
+                backgroundColor: accent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
