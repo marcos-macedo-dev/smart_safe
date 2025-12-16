@@ -46,4 +46,9 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3002, () => { console.log('Server running on http://localhost:3002'); });
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
+});
