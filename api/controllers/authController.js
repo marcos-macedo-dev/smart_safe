@@ -74,7 +74,7 @@ module.exports = {
         id: account.id,
         role: role,
         email: account.email,
-        ...(role === 'autoridade' && {
+        ...(['Agente', 'Unidade'].includes(role) && {
           delegacia_id: account.delegacia_id,
           cargo: account.cargo
         })
@@ -104,10 +104,10 @@ module.exports = {
 
       const userResponse = {
         id: account.id,
-        nome: role === 'autoridade' ? account.nome : account.nome_completo,
+        nome: ['Agente', 'Unidade'].includes(role) ? account.nome : account.nome_completo,
         email: account.email,
         tipo: role,
-        ...(role === 'autoridade' && {
+        ...(['Agente', 'Unidade'].includes(role) && {
           delegacia_id: account.delegacia_id,
           cargo: account.cargo
         })
