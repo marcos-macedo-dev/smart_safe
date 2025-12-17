@@ -154,8 +154,25 @@ module.exports = {
 
       const { id, role } = decoded;
 
+      // Recarrega dados necessários para autoridades (delegacia_id/cargo)
+      let delegaciaId = null;
+      let cargo = null;
+      if (['Agente', 'Unidade'].includes(role)) {
+        const autoridade = await Autoridade.findByPk(id);
+        if (!autoridade) {
+          return res.status(401).json({ success: false, message: 'Autoridade não encontrada para o token' });
+        }
+        delegaciaId = autoridade.delegacia_id;
+        cargo = autoridade.cargo;
+      }
+
       // Regerar tokens
-      const payload = { id, role }; // manter mínimo para access token
+      const payload = {
+        id,
+        role,
+        ...(delegaciaId != null && { delegacia_id: delegaciaId }),
+        ...(cargo && { cargo }),
+      };
       const newAccessToken = generateAccessToken(payload);
       const newRefreshToken = generateRefreshToken(payload);
 
