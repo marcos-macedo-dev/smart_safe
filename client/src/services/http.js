@@ -107,8 +107,8 @@ http.interceptors.response.use(
 // ============================================================================
 export const login = async (payload) => {
   const response = await http.post('/auth/login', payload)
-  if (response.data.token) {
-    saveAuthData(response.data.token, response.data.user)
+  if (response.data.accessToken) {
+    saveAuthData(response.data.accessToken, response.data.user)
   }
   return response
 }

@@ -38,10 +38,10 @@ class WelcomeScreen extends StatelessWidget {
                       color: Colors.white.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      LucideIcons.shield,
-                      size: 72,
-                      color: Colors.white,
+                    child: Image.asset(
+                      'assets/logotipo_sem_fundo.png',
+                      height: 100,
+                      fit: BoxFit.contain,
                     ),
                   ).animate().scale(
                     duration: 600.ms,

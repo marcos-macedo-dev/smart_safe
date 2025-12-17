@@ -303,7 +303,13 @@ class _MainLayoutState extends State<MainLayout> {
                       color: accent.withOpacity(0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.shield_rounded, color: accent, size: 22),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Image.asset(
+                        'assets/logotipo_sem_fundo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(

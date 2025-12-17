@@ -11,11 +11,16 @@ export const useUserStore = defineStore('user', {
   getters: {
     isAuthenticated: (state) => !!state.currentUser,
     user: (state) => state.currentUser,
-    cargo: (state) => state.currentUser?.cargo || null
+    cargo: (state) => {
+      if (!state.currentUser) return null
+      // Retorna o cargo explícito ou o tipo de usuário como fallback
+      return state.currentUser.cargo || state.currentUser.tipo || null
+    }
   },
   
   actions: {
     setUser(user) {
+      console.log('UserStore: Setting user:', user)
       this.currentUser = user
       if (user) {
         localStorage.setItem(USER_KEY, JSON.stringify(user))
