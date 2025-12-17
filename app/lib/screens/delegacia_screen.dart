@@ -158,42 +158,52 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
       final cachedData = prefs.getString(_delegaciasCacheKey);
       final cachedTimestamp = prefs.getInt(_cacheTimestampKey);
 
+      // Mostra cache rapidamente (se ainda válido) enquanto buscamos dados frescos
       if (cachedData != null && cachedTimestamp != null) {
         final lastCacheTime = DateTime.fromMillisecondsSinceEpoch(
           cachedTimestamp,
         );
         if (DateTime.now().difference(lastCacheTime) < _cacheDuration) {
-          // Use cached data
           final List<dynamic> jsonList = jsonDecode(cachedData);
-          final fetched = jsonList
+          final cached = jsonList
               .map((json) => Delegacia.fromJson(json))
               .toList();
-          setState(() {
-            _delegacias = fetched;
-            filteredDelegacias = List.from(fetched);
-          });
+          if (mounted) {
+            setState(() {
+              _delegacias = cached;
+              filteredDelegacias = List.from(cached);
+              _isLoading = false;
+            });
+          }
           _updateMarkers();
-          return; // Exit early, using cached data
         }
       }
 
-      // Fetch from API if no cache or cache expired
+      // Sempre tenta atualizar a partir da API para evitar lista desatualizada
       final fetched = await ApiService.getDelegacias();
-      setState(() {
-        _delegacias = fetched;
-        filteredDelegacias = List.from(fetched);
-      });
-      _updateMarkers();
+      if (fetched.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _delegacias = fetched;
+            filteredDelegacias = List.from(fetched);
+            _isLoading = false;
+          });
+        }
+        _updateMarkers();
 
-      // Save to cache
-      final String jsonString = jsonEncode(
-        fetched.map((d) => d.toJson()).toList(),
-      );
-      await prefs.setString(_delegaciasCacheKey, jsonString);
-      await prefs.setInt(
-        _cacheTimestampKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
+        // Atualiza cache apenas com resposta não vazia
+        final String jsonString = jsonEncode(
+          fetched.map((d) => d.toJson()).toList(),
+        );
+        await prefs.setString(_delegaciasCacheKey, jsonString);
+        await prefs.setInt(
+          _cacheTimestampKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      } else if (mounted && _isLoading) {
+        // Não veio nada e não tínhamos cache válido
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,9 +216,10 @@ class _DelegaciaScreenState extends State<DelegaciaScreen> {
             margin: const EdgeInsets.all(16),
           ),
         );
+        if (_isLoading) setState(() => _isLoading = false);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && _isLoading) setState(() => _isLoading = false);
     }
   }
 

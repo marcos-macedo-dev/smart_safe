@@ -16,7 +16,7 @@ const {
 
 const findAccountByEmail = async (email) => {
   const autoridade = await Autoridade.findOne({ where: { email } });
-  if (autoridade) return { account: autoridade, role: 'autoridade' };
+  if (autoridade) return { account: autoridade, role: autoridade.cargo }; // Retorna o cargo real: 'Agente' ou 'Unidade'
 
   const user = await User.findOne({ where: { email } });
   if (user) return { account: user, role: 'user' };

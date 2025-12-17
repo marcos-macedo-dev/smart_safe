@@ -322,7 +322,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        '/delegacias/nearby',
+        '/delegacias/proximas',
         queryParameters: {
           'latitude': latitude,
           'longitude': longitude,

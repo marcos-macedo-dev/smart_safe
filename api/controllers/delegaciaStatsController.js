@@ -4,8 +4,8 @@ const { Op } = require('sequelize');
 // Obter estatísticas da delegacia do usuário logado
 exports.getDelegaciaStats = async (req, res) => {
   try {
-    // Verificar se o usuário é uma autoridade
-    if (!req.user || req.user.tipo !== 'autoridade' || !req.user.delegacia_id) {
+    // Verificar se o usuário é uma autoridade (Agente ou Unidade)
+    if (!req.user || !['Agente', 'Unidade'].includes(req.user.role) || !req.user.delegacia_id) {
       return res.status(403).json({ error: 'Acesso negado. Apenas autoridades podem acessar estas estatísticas.' });
     }
 
@@ -129,7 +129,7 @@ exports.getDelegaciaStats = async (req, res) => {
 // Obter estatísticas de SOS por hora do dia para a delegacia
 exports.getDelegaciaSosByHour = async (req, res) => {
   try {
-    if (!req.user || req.user.tipo !== 'autoridade' || !req.user.delegacia_id) {
+    if (!req.user || !['Agente', 'Unidade'].includes(req.user.role) || !req.user.delegacia_id) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -171,7 +171,7 @@ exports.getDelegaciaSosByHour = async (req, res) => {
 // Obter estatísticas de SOS por dia da semana para a delegacia
 exports.getDelegaciaSosByDayOfWeek = async (req, res) => {
   try {
-    if (!req.user || req.user.tipo !== 'autoridade' || !req.user.delegacia_id) {
+    if (!req.user || !['Agente', 'Unidade'].includes(req.user.role) || !req.user.delegacia_id) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -229,7 +229,7 @@ exports.getDelegaciaSosByDayOfWeek = async (req, res) => {
 // Obter estatísticas demográficas dos usuários da delegacia
 exports.getDelegaciaUserDemographics = async (req, res) => {
   try {
-    if (!req.user || req.user.tipo !== 'autoridade' || !req.user.delegacia_id) {
+    if (!req.user || !['Agente', 'Unidade'].includes(req.user.role) || !req.user.delegacia_id) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -293,7 +293,7 @@ exports.getDelegaciaUserDemographics = async (req, res) => {
 // Obter estatísticas de localização geográfica para a delegacia
 exports.getDelegaciaLocationStats = async (req, res) => {
   try {
-    if (!req.user || req.user.tipo !== 'autoridade' || !req.user.delegacia_id) {
+    if (!req.user || !['Agente', 'Unidade'].includes(req.user.role) || !req.user.delegacia_id) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 

@@ -479,10 +479,9 @@ const sections = [
       'Modais para adicionar/editar autoridades',
     ],
     tips: [
-      'Mantenha os dados das autoridades sempre atualizados',
-      'Utilize cargos diferentes para definir níveis de acesso',
-      'Desative autoridades que não estão mais ativas na instituição',
-    ],
+              'Mantenha os dados das autoridades sempre atualizados',
+              'Utilize cargos diferentes para definir níveis de acesso (ex: Unidade vs Agente).',
+              'Desative autoridades que não estão mais ativas na instituição',    ],
     links: [
       { id: 'profile', title: 'Meu Perfil' },
       { id: 'authentication', title: 'Autenticação' },
@@ -615,7 +614,7 @@ const sections = [
     content: ['Sistema completo para registro e aprovação de delegacias:'],
     list: [
       'Registro de novas delegacias com dados completos',
-      'Sistema de aprovação por administradores',
+      'Sistema de aprovação por unidades',
       'Rejeição de registros com justificativa',
       'Visualização de delegacias pendentes de aprovação',
       'Dados geográficos precisos (latitude/longitude)',
