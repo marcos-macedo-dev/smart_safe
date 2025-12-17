@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 // URL do servidor WebSocket
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3002';
+const SOCKET_URL = 'https://api.nuvemtec.shop';
 
 class SocketService {
   constructor() {
@@ -17,7 +17,7 @@ class SocketService {
 
     try {
       console.log('Tentando conectar ao WebSocket em:', SOCKET_URL);
-      
+
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         reconnection: true,
