@@ -606,31 +606,40 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              // Header com badges flutuantes
-              _buildHeader(theme, colorScheme, textScaler),
-              if (_currentAction != null) ...[
-                const SizedBox(height: 12),
-                _buildCurrentActionIndicator(theme, colorScheme, textScaler),
-              ],
-              const SizedBox(height: 20),
-              // Botão SOS Principal - Card flutuante (prioridade máxima)
-              Expanded(
-                flex: 3,
-                child: Center(child: _buildMainSosButton(theme, colorScheme)),
-              ),
-              const SizedBox(height: 16),
-              // Card de seleção de tipo (compacto)
-              _buildActionTypeCard(theme, colorScheme, textScaler),
-              const SizedBox(height: 12),
-              // Card de localização (compacto)
-              _buildLocationCard(theme, colorScheme, textScaler),
-              const SizedBox(height: 12),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Ajuste dinâmico do tamanho do botão baseado na altura disponível
+              final double availableHeight = constraints.maxHeight;
+              final double buttonSize = (availableHeight * 0.30).clamp(160.0, 220.0);
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header com badges flutuantes
+                  _buildHeader(theme, colorScheme, textScaler),
+                  if (_currentAction != null) ...[
+                    const SizedBox(height: 8),
+                    _buildCurrentActionIndicator(theme, colorScheme, textScaler),
+                  ],
+                  const SizedBox(height: 12),
+                  // Botão SOS Principal - Card flutuante (prioridade máxima)
+                  Expanded(
+                    flex: 3,
+                    child: Center(
+                      child: _buildMainSosButton(theme, colorScheme, buttonSize),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Card de seleção de tipo (compacto)
+                  _buildActionTypeCard(theme, colorScheme, textScaler),
+                  const SizedBox(height: 10),
+                  // Card de localização (compacto)
+                  _buildLocationCard(theme, colorScheme, textScaler),
+                  const SizedBox(height: 4),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -690,10 +699,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   }
 
   // Botão SOS Principal estilo Uber
-  Widget _buildMainSosButton(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildMainSosButton(ThemeData theme, ColorScheme colorScheme, double size) {
     return ScaleTransition(
       scale: _recording ? _pulseAnimation : const AlwaysStoppedAnimation(1.0),
       child: Container(
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           boxShadow: [
@@ -711,8 +722,6 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           alignment: Alignment.center,
           children: [
             Container(
-              width: 220,
-              height: 220,
               decoration: BoxDecoration(
                 color: _emergencyModeActive ? Colors.red.shade700 : accent,
                 shape: BoxShape.circle,
@@ -730,30 +739,30 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                           _recording
                               ? Icons.stop_rounded
                               : Icons.warning_rounded,
-                          size: _recording ? 60 : 80,
+                          size: size * 0.35, // Proporcional ao tamanho
                           color: Colors.white,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: size * 0.07),
                         Text(
                           _recording
                               ? 'PARAR'
                               : (_isOnline ? 'SOS' : 'SOS OFFLINE'),
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: _recording ? 18 : 26,
+                            fontSize: size * 0.11, // Proporcional
                             fontWeight: FontWeight.w900,
                             letterSpacing: 3,
                           ),
                         ),
                         if (!_isOnline)
                           Padding(
-                            padding: const EdgeInsets.only(top: 6),
+                            padding: EdgeInsets.only(top: size * 0.03),
                             child: Text(
-                              'Salva e envia quando voltar a ficar online',
+                              'Salva e envia quando\nvoltar a ficar online',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.85),
-                                fontSize: 11,
+                                fontSize: size * 0.05,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: -0.2,
                               ),
@@ -768,7 +777,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
             // Texto de emergência quando ativo
             if (_emergencyModeActive)
               Positioned(
-                bottom: 12,
+                bottom: size * 0.06,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -802,7 +811,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
   ) {
     final actionInfo = _getActionInfo(_currentAction);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: accent,
         borderRadius: BorderRadius.circular(12),
@@ -811,12 +820,12 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(actionInfo['icon'], size: 20, color: Colors.white),
+          Icon(actionInfo['icon'], size: 18, color: Colors.white),
           const SizedBox(width: 8),
           Text(
             actionInfo['label'],
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: textScaler.scale(15),
+              fontSize: textScaler.scale(14),
               fontWeight: FontWeight.w600,
               color: Colors.white,
               letterSpacing: -0.2,
@@ -847,7 +856,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     TextScaler textScaler,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -861,13 +870,13 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
           Text(
             'Tipo de alerta',
             style: TextStyle(
-              fontSize: textScaler.scale(16),
+              fontSize: textScaler.scale(15),
               fontWeight: FontWeight.w700,
               color: textPrimary,
               letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               _buildQuickActionButton(
@@ -876,14 +885,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 theme,
                 colorScheme,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               _buildQuickActionButton(
                 'video',
                 Icons.videocam_rounded,
                 theme,
                 colorScheme,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               _buildQuickActionButton(
                 'location',
                 Icons.location_on_rounded,
@@ -904,7 +913,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
     TextScaler textScaler,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -915,14 +924,14 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.my_location_rounded, size: 20, color: accent),
+            child: Icon(Icons.my_location_rounded, size: 18, color: accent),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,7 +939,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 Text(
                   'Localização contínua',
                   style: TextStyle(
-                    fontSize: textScaler.scale(15),
+                    fontSize: textScaler.scale(14),
                     color: textPrimary,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.3,
@@ -940,7 +949,7 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
                 Text(
                   'Compartilhar em tempo real',
                   style: TextStyle(
-                    fontSize: textScaler.scale(12),
+                    fontSize: textScaler.scale(11),
                     color: textMuted,
                     fontWeight: FontWeight.w500,
                   ),
@@ -948,10 +957,13 @@ class _SosScreenState extends State<SosScreen> with TickerProviderStateMixin {
               ],
             ),
           ),
-          Switch.adaptive(
-            value: _sendLocationRealtime,
-            onChanged: _activeSosId != null ? _toggleRealtimeLocation : null,
-            activeColor: accent,
+          Transform.scale(
+            scale: 0.8,
+            child: Switch.adaptive(
+              value: _sendLocationRealtime,
+              onChanged: _activeSosId != null ? _toggleRealtimeLocation : null,
+              activeColor: accent,
+            ),
           ),
         ],
       ),

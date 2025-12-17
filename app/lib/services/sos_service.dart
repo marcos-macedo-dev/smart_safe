@@ -140,8 +140,10 @@ class SosService {
 
       if (caminhoVideo != null && !caminhoVideo.startsWith('http')) {
         try {
+          print('SosService: Iniciando upload de vídeo: $caminhoVideo');
           final uploadedMedia = await ApiService.uploadFile(File(caminhoVideo));
           if (uploadedMedia != null && uploadedMedia.caminho.isNotEmpty) {
+            print('SosService: Upload de vídeo finalizado. Caminho remoto: ${uploadedMedia.caminho}');
             finalCaminhoVideo = uploadedMedia.caminho;
             await File(caminhoVideo).delete();
           } else {

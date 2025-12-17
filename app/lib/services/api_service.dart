@@ -280,11 +280,23 @@ class ApiService {
   static Future<Media?> uploadFile(File file) async {
     try {
       final fileName = file.path.split('/').last;
+      debugPrint('ApiService: Iniciando upload do arquivo: $fileName (${file.lengthSync()} bytes)');
+
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(file.path, filename: fileName),
       });
-      final response = await _dio.post('/upload', data: formData);
+
+      final response = await _dio.post(
+        '/upload', 
+        data: formData,
+        onSendProgress: (int sent, int total) {
+          final progress = (sent / total * 100).toStringAsFixed(2);
+          debugPrint('ApiService: Upload progress: $progress% ($sent/$total)');
+        },
+      );
+
       if (response.statusCode == 200 && response.data != null) {
+        debugPrint('ApiService: Upload concluído com sucesso: $fileName');
         return Media.fromJson(response.data);
       }
       debugPrint(

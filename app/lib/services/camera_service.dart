@@ -35,24 +35,41 @@ class CameraService {
 
   /// Para a gravação e salva o arquivo no diretório Movies (público)
   Future<File?> stopRecording() async {
-    if (_controller == null || !initialized || !_recording) return null;
+    if (_controller == null || !initialized || !_recording) {
+      log('[CameraService] stopRecording: Controller não inicializado, não gravando ou já parou. Retornando null.');
+      return null;
+    }
 
-    final XFile video = await _controller!.stopVideoRecording();
-    _recording = false;
+    try {
+      final XFile video = await _controller!.stopVideoRecording();
+      _recording = false;
+      log('[CameraService] stopRecording: Gravação parada. XFile criado: ${video.path}');
 
-    final List<Directory>? dirs = await getExternalStorageDirectories(
-      type: StorageDirectory.movies,
-    );
-    if (dirs == null || dirs.isEmpty) return null;
+      final List<Directory>? dirs = await getExternalStorageDirectories(
+        type: StorageDirectory.movies,
+      );
+      
+      if (dirs == null || dirs.isEmpty) {
+        log('[CameraService] stopRecording: Nenhum diretório de filmes externo encontrado. Retornando null.');
+        return null;
+      }
 
-    final Directory extDir = dirs.first;
-    final String filePath =
-        '${extDir.path}/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final Directory extDir = dirs.first;
+      final String filePath = '${extDir.path}/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      log('[CameraService] stopRecording: Caminho de destino para salvar: $filePath');
 
-    final bytes = await video.readAsBytes();
-    await File(filePath).writeAsBytes(bytes);
-    log('Video saved to: $filePath');
-    return File(filePath);
+      final bytes = await video.readAsBytes();
+      log('[CameraService] stopRecording: Bytes do vídeo lidos. Tamanho: ${bytes.length} bytes.');
+      
+      final File newFile = File(filePath);
+      await newFile.writeAsBytes(bytes);
+      log('[CameraService] stopRecording: Vídeo salvo com sucesso em: $filePath');
+      return newFile;
+    } catch (e) {
+      log('[CameraService] stopRecording: Erro ao parar gravação ou salvar arquivo: $e');
+      _recording = false; // Garantir que o estado de gravação seja resetado
+      return null;
+    }
   }
 
   void dispose() {
@@ -60,5 +77,4 @@ class CameraService {
     _controller?.dispose();
     _controller = null;
   }
-
-  }
+}
